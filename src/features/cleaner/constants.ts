@@ -14,6 +14,12 @@ export const ITEM_KIND = {
   INFO: "info",
 } as const satisfies Record<string, CleanItemKind>;
 
+// Avisos que `disk-clean --list` añade a un elemento (7.º campo).
+export const ITEM_NOTE = {
+  /** Contiene un .app: macOS exige el permiso de Gestión de apps y se salta. */
+  APP_BUNDLE: "app-bundle",
+} as const;
+
 // Claves de sección que imprime cli/disk-clean (SECTIONS en el script).
 export const SECTION = {
   CACHES: "caches",
@@ -50,3 +56,17 @@ export const BYTES_PER_MB = 1024 ** 2;
 // Medidor: verde hasta 10 GB liberables, amarillo hasta 30, rojo desde 30.
 export const METER_WARN_GB = 10;
 export const METER_DANGER_GB = 30;
+
+export const CLEANER_TAB = {
+  MAIN: "main",
+  ITEMS: "items",
+  OUTPUT: "output",
+} as const;
+
+export type CleanerTab = (typeof CLEANER_TAB)[keyof typeof CLEANER_TAB];
+
+export const CLEANER_TABS_ID = "cleaner";
+
+// No es texto traducible: la sirena es decoración de la alerta roja.
+export const SIREN = "🚨";
+export const ALERT_SIREN_COUNT = 2;

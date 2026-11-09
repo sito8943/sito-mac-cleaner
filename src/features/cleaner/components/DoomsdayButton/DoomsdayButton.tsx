@@ -4,7 +4,7 @@ import { t } from "@/lang";
 import { Spinner } from "@/shared/components/elements/Spinner";
 import { UnstyledButton } from "@/shared/components/elements/UnstyledButton";
 import { classNames } from "@/shared/utils";
-import { ARM_TIMEOUT_MS } from "./constants";
+import { ARM_TIMEOUT_MS, LEVEL_SUFFIX } from "./constants";
 import { DoomsdayButtonProps } from "./types";
 
 import "@/styles/components/DoomsdayButton.css";
@@ -16,6 +16,7 @@ import "@/styles/components/DoomsdayButton.css";
 export function DoomsdayButton({
   disabled,
   busy,
+  level,
   onFire,
   onArmedChange,
 }: DoomsdayButtonProps) {
@@ -40,6 +41,7 @@ export function DoomsdayButton({
     <div
       className={classNames(
         "Doomsday",
+        level,
         armed && "armed",
         disabled && "disabled",
       )}
@@ -50,7 +52,11 @@ export function DoomsdayButton({
         aria-label={t("cleanNow")}
         onClick={fire}
       >
-        {busy ? <Spinner /> : <span>{t("doomsdayLabel")}</span>}
+        {busy ? (
+          <Spinner />
+        ) : (
+          <span>{`${t("doomsdayLabel")}${LEVEL_SUFFIX[level]}`}</span>
+        )}
       </UnstyledButton>
       <UnstyledButton
         className="Doomsday-cover"

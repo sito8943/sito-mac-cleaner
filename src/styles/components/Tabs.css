@@ -1,0 +1,41 @@
+/* Control segmentado: pista gris con la pestaña activa en relieve. */
+.Tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--color-border);
+}
+
+.Tabs-tab {
+  flex: 1;
+  margin: var(--space-0);
+  padding: var(--space-1-5) var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.Tabs-tab:hover:not(.active) {
+  color: var(--color-text);
+}
+
+.Tabs-tab.active {
+  background: var(--color-surface-card);
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 15%);
+}
+
+.Tabs-tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}

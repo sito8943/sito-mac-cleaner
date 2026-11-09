@@ -20,6 +20,15 @@ export function formatBytes(bytes: number | null): string {
   return `${Math.round(bytes / BYTES_PER_MB)} MB`;
 }
 
+/** Última línea con texto del log (lo que el script está haciendo ahora). */
+export function lastLogLine(lines: readonly string[]): string | null {
+  for (let index = lines.length - 1; index >= 0; index--) {
+    const line = lines[index].trim();
+    if (line) return line;
+  }
+  return null;
+}
+
 export function meterLevel(bytes: number): MeterLevel {
   const gb = bytes / BYTES_PER_GB;
   if (gb >= METER_DANGER_GB) return METER_LEVEL.DANGER;

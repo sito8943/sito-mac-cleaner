@@ -20,15 +20,25 @@ import {
   TOOLTIP_ALIGN,
   TOOLTIP_SIDE,
 } from "@/shared/constants";
+import { UnstyledButton } from "@/shared/components/elements/UnstyledButton";
+import { Tabs, panelId, tabId } from "@/shared/components/elements/Tabs";
 import { classNames } from "@/shared/utils";
+import { AlertBanner } from "./components/AlertBanner";
 import { CleanLog } from "./components/CleanLog";
 import { DoomsdayButton } from "./components/DoomsdayButton";
 import { ItemList } from "./components/ItemList";
 import { TrayConsent } from "./components/TrayConsent";
 import { VuMeter } from "./components/VuMeter";
-import { METER_LEVEL, PHASE } from "./constants";
+import {
+  CLEANER_TAB,
+  CLEANER_TABS_ID,
+  CleanerTab,
+  METER_LEVEL,
+  PHASE,
+} from "./constants";
 import { useCleaner } from "./providers/CleanerProvider";
-import { formatBytes, meterLevel } from "./utils";
+import { CLEANER_TABS } from "./tabs";
+import { formatBytes, lastLogLine, meterLevel } from "./utils";
 
 import "@/styles/views/Cleaner.css";
 
@@ -63,6 +73,7 @@ export function Cleaner() {
     clearError,
   } = useCleaner();
   const [armed, setArmed] = useState(false);
+  const [tab, setTab] = useState<CleanerTab>(CLEANER_TAB.MAIN);
 
   if (trayEnabled === null) {
     return (
@@ -76,6 +87,21 @@ export function Cleaner() {
   const cleaning = phase === PHASE.CLEANING;
   const busy = scanning || cleaning;
   const level = meterLevel(selectedBytes);
+  // Mientras trabaja no hay zona: el medidor hace el barrido de "cargando".
+  const alert = !busy && level === METER_LEVEL.DANGER;
+  const tabs = CLEANER_TABS.map((entry) => ({
+    id: entry.id,
+    label: entry.label(),
+  }));
+  const panelProps = (id: CleanerTab) => ({
+    id: panelId(CLEANER_TABS_ID, id),
+
+    role: "tabpanel",
+    "aria-labelledby": tabId(CLEANER_TABS_ID, id),
+  });
+
+  // Limpiando, la pista es la última línea del script: dice qué está borrando.
+  const currentStep = cleaning ? lastLogLine(log) : null;
 
   let hint = t("hintCover");
   if (scanning) hint = t("hintScanning");
@@ -84,7 +110,7 @@ export function Cleaner() {
   else if (armed) hint = t("hintArmed");
 
   return (
-    <div className="Cleaner">
+    <div className={classNames("Cleaner", alert && "alert")}>
       {error ? (
         <aside className="error">
           <p>{error}</p>
@@ -163,76 +189,120 @@ export function Cleaner() {
         <p className="shortcut-hint">{t("shortcutHint", SHORTCUT_LABEL)}</p>
       ) : null}
 
-      <section className={classNames("hero", !busy && level)}>
-        <VuMeter bytes={selectedBytes} busy={busy}>
-          <DoomsdayButton
-            disabled={busy || selected.size === 0}
-            busy={busy}
-            onFire={clean}
-            onArmedChange={setArmed}
-          />
-        </VuMeter>
-        <div className="readout">
-          <strong>
-            {scanning ? t("scanning") : formatBytes(selectedBytes)}
-          </strong>
-          {!busy ? <span className="level">{LEVEL_TEXT[level]()}</span> : null}
-          {!busy && selectedUnknown > 0 ? (
-            <span className="extra">{t("unknownExtra", selectedUnknown)}</span>
-          ) : null}
-          <span className={classNames("hint", armed && "armed")}>{hint}</span>
-        </div>
-      </section>
+      {alert ? <AlertBanner /> : null}
 
-      {freedBytes !== null ? (
-        <aside className="freed">{t("freed", formatBytes(freedBytes))}</aside>
+      <Tabs
+        tabs={tabs}
+        value={tab}
+        onChange={(id) => {
+          // El botón se desmonta al cambiar de pestaña y la tapa vuelve cerrada.
+          setArmed(false);
+          setTab(id);
+        }}
+        idPrefix={CLEANER_TABS_ID}
+      />
+
+      {tab === CLEANER_TAB.MAIN ? (
+        <div className="panel main" {...panelProps(CLEANER_TAB.MAIN)}>
+          <section className={classNames("hero", !busy && level)}>
+            <VuMeter bytes={selectedBytes} busy={busy}>
+              <DoomsdayButton
+                disabled={busy || selected.size === 0}
+                busy={busy}
+                level={busy ? METER_LEVEL.OK : level}
+                onFire={clean}
+                onArmedChange={setArmed}
+              />
+            </VuMeter>
+            <div className="readout">
+              <strong>
+                {scanning ? t("scanning") : formatBytes(selectedBytes)}
+              </strong>
+              {!busy ? (
+                <span className="level">{LEVEL_TEXT[level]()}</span>
+              ) : null}
+              {!busy && selectedUnknown > 0 ? (
+                <span className="extra">
+                  {t("unknownExtra", selectedUnknown)}
+                </span>
+              ) : null}
+              {cleaning ? (
+                <UnstyledButton
+                  className="hint step"
+                  title={t("viewOutput")}
+                  onClick={() => setTab(CLEANER_TAB.OUTPUT)}
+                >
+                  {currentStep ?? hint}
+                </UnstyledButton>
+              ) : (
+                <span className={classNames("hint", armed && "armed")}>
+                  {hint}
+                </span>
+              )}
+            </div>
+          </section>
+
+          {freedBytes !== null ? (
+            <aside className="freed">
+              {t("freed", formatBytes(freedBytes))}
+            </aside>
+          ) : null}
+        </div>
       ) : null}
 
-      {log.length > 0 ? <CleanLog lines={log} /> : null}
-
-      {scan ? (
-        <>
-          <div className="toolbar">
-            <span className="count">
-              {t("selectedCount", selected.size, cleanableCount)}
-            </span>
-            <div className="toolbar-actions">
-              <Button
-                size={BUTTON_SIZE.SM}
-                variant={BUTTON_VARIANT.TEXT}
-                disabled={busy}
-                onClick={selectAll}
-              >
-                {t("selectAll")}
-              </Button>
-              <Button
-                size={BUTTON_SIZE.SM}
-                variant={BUTTON_VARIANT.TEXT}
-                disabled={busy}
-                onClick={selectNone}
-              >
-                {t("selectNone")}
-              </Button>
-            </div>
-          </div>
-          {groups.length ? (
-            <ItemList
-              groups={groups}
-              selected={selected}
-              disabled={busy}
-              onToggleItem={toggleItem}
-              onToggleSection={toggleSection}
-            />
-          ) : (
+      {tab === CLEANER_TAB.ITEMS ? (
+        <div className="panel items" {...panelProps(CLEANER_TAB.ITEMS)}>
+          {scan ? (
+            <>
+              <div className="toolbar">
+                <span className="count">
+                  {t("selectedCount", selected.size, cleanableCount)}
+                </span>
+                <div className="toolbar-actions">
+                  <Button
+                    size={BUTTON_SIZE.SM}
+                    variant={BUTTON_VARIANT.TEXT}
+                    disabled={busy}
+                    onClick={selectAll}
+                  >
+                    {t("selectAll")}
+                  </Button>
+                  <Button
+                    size={BUTTON_SIZE.SM}
+                    variant={BUTTON_VARIANT.TEXT}
+                    disabled={busy}
+                    onClick={selectNone}
+                  >
+                    {t("selectNone")}
+                  </Button>
+                </div>
+              </div>
+              {groups.length ? (
+                <ItemList
+                  groups={groups}
+                  selected={selected}
+                  disabled={busy}
+                  onToggleItem={toggleItem}
+                  onToggleSection={toggleSection}
+                />
+              ) : (
+                <div className="empty">
+                  <p className="empty-title">{t("emptyTitle")}</p>
+                </div>
+              )}
+            </>
+          ) : scanning ? (
             <div className="empty">
-              <p className="empty-title">{t("emptyTitle")}</p>
+              <p className="empty-title">{t("scanningTitle")}</p>
+              <p className="empty-hint">{t("scanningHint")}</p>
             </div>
-          )}
-        </>
-      ) : scanning ? (
-        <div className="empty">
-          <p className="empty-title">{t("scanningTitle")}</p>
-          <p className="empty-hint">{t("scanningHint")}</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {tab === CLEANER_TAB.OUTPUT ? (
+        <div className="panel output" {...panelProps(CLEANER_TAB.OUTPUT)}>
+          <CleanLog lines={log} />
         </div>
       ) : null}
     </div>

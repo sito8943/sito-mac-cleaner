@@ -30,9 +30,16 @@ export interface Dictionary {
   liftCover: string;
   freed: (size: string) => string;
   logTitle: string;
+  viewOutput: string;
+  logEmpty: string;
+  tabMain: string;
+  tabItems: string;
+  tabOutput: string;
+  alertTitle: string;
   selectedCount: (selected: number, total: number) => string;
   selectAll: string;
   selectNone: string;
+  noteAppBundle: string;
   sizeUnknown: string;
   sectionCaches: string;
   sectionPackages: string;

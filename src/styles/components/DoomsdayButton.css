@@ -114,3 +114,59 @@
     animation: none;
   }
 }
+
+/* Zona amarilla: el botón avisa y su texto gana un "!". */
+.Doomsday.warn .Doomsday-button {
+  background: radial-gradient(
+    circle at 40% 35%,
+    var(--color-warn-light),
+    var(--color-warn) 55%,
+    var(--color-warn-dark)
+  );
+  box-shadow:
+    0 var(--size-button-travel) 0 var(--color-warn-darker),
+    inset 0 2px 0 rgb(255 255 255 / 35%);
+  color: var(--color-warn-text);
+  text-shadow: 0 1px 0 rgb(255 255 255 / 40%);
+}
+
+.Doomsday.warn.armed .Doomsday-button {
+  animation-name: Doomsday-pulse-warn;
+}
+
+/* Zona roja: botón rojo que late aun con la tapa puesta, para que se vea. */
+.Doomsday.danger .Doomsday-button {
+  background: radial-gradient(
+    circle at 40% 35%,
+    var(--color-danger-light),
+    var(--color-danger) 55%,
+    var(--color-danger-dark)
+  );
+  box-shadow:
+    0 var(--size-button-travel) 0 var(--color-danger-darker),
+    inset 0 2px 0 rgb(255 255 255 / 35%);
+  animation: Doomsday-pulse-danger 1s ease-in-out infinite;
+}
+
+.Doomsday.warn.armed .Doomsday-button:active,
+.Doomsday.danger.armed .Doomsday-button:active {
+  box-shadow: inset 0 2px 0 rgb(255 255 255 / 35%);
+}
+
+@keyframes Doomsday-pulse-warn {
+  50% {
+    filter: brightness(1.1) drop-shadow(0 0 12px var(--color-warn));
+  }
+}
+
+@keyframes Doomsday-pulse-danger {
+  50% {
+    filter: brightness(1.15) drop-shadow(0 0 16px var(--color-danger));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .Doomsday.danger .Doomsday-button {
+    animation: none;
+  }
+}

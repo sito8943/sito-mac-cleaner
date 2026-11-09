@@ -24,6 +24,11 @@
   --size-log-max-height: 180px;
   --size-button-travel: 6px;
   --size-cover-gap: 3px;
+  --size-log-tab-max-height: 420px;
+  --size-alert-glow: 28px;
+  --size-siren: 1.25rem;
+
+  --z-index-alert: 10;
 
   /* Grosor de los LEDs del medidor, en unidades del viewBox del SVG. */
   --led-stroke-width: 8;
@@ -80,6 +85,17 @@
   --color-led-ok: #22c55e;
   --color-led-warn: #facc15;
   --color-led-danger: #ef4444;
+  /* Botón por zonas del medidor: amarillo avisando, rojo en zona roja. */
+  --color-warn: #facc15;
+  --color-warn-light: #fef08a;
+  --color-warn-dark: #ca8a04;
+  --color-warn-darker: #713f12;
+  --color-warn-text: #422006;
+  --color-danger: #ef4444;
+  --color-danger-light: #fca5a5;
+  --color-danger-dark: #b91c1c;
+  --color-danger-darker: #7f1d1d;
+  --color-alert-rgb: 239 68 68;
   --color-log-background: #0b0e14;
   --color-log-text: #c7f9d4;
 

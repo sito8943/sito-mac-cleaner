@@ -34,10 +34,18 @@ export const es: Dictionary = {
   liftCover: "Levantar la tapa de seguridad",
   freed: (size: string) => `¡Liberados ${size}!`,
   logTitle: "Salida de disk-clean",
+  viewOutput: "Ver la salida completa",
+  logEmpty: "Nada todavía. Aquí sale la salida de la limpieza.",
+  tabMain: "Limpiar",
+  tabItems: "Lista",
+  tabOutput: "Salida",
+  alertTitle: "ALERTA DE DISCO",
   selectedCount: (selected: number, total: number) =>
     `${selected} de ${total} marcados`,
   selectAll: "Marcar todo",
   selectNone: "Desmarcar todo",
+  noteAppBundle:
+    "Contiene una app: macOS solo deja borrarla con el permiso de Gestión de apps, así que se saltará. Bórrala desde Finder o da el permiso en Ajustes del Sistema > Privacidad y seguridad.",
   sizeUnknown: "El script no puede estimar cuánto libera",
   sectionCaches: "Cachés de apps",
   sectionPackages: "Gestores de paquetes",

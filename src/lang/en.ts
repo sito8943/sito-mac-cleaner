@@ -34,10 +34,18 @@ export const en: Dictionary = {
   liftCover: "Lift the safety cover",
   freed: (size: string) => `${size} freed!`,
   logTitle: "disk-clean output",
+  viewOutput: "See the full output",
+  logEmpty: "Nothing yet. The cleanup output shows up here.",
+  tabMain: "Clean",
+  tabItems: "Items",
+  tabOutput: "Output",
+  alertTitle: "DISK ALERT",
   selectedCount: (selected: number, total: number) =>
     `${selected} of ${total} ticked`,
   selectAll: "Tick all",
   selectNone: "Untick all",
+  noteAppBundle:
+    "Contains an app: macOS only lets it be deleted with the App Management permission, so it will be skipped. Remove it from Finder or grant the permission in System Settings > Privacy & Security.",
   sizeUnknown: "The script can't estimate how much this frees",
   sectionCaches: "App caches",
   sectionPackages: "Package managers",

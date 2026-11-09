@@ -18,7 +18,11 @@ export function CleanLog({ lines }: CleanLogProps) {
   return (
     <section className="CleanLog">
       <h2>{t("logTitle")}</h2>
-      <pre ref={ref}>{lines.join("\n")}</pre>
+      {lines.length > 0 ? (
+        <pre ref={ref}>{lines.join("\n")}</pre>
+      ) : (
+        <p className="CleanLog-empty">{t("logEmpty")}</p>
+      )}
     </section>
   );
 }

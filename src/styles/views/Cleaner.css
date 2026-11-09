@@ -152,3 +152,60 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
+
+.Cleaner .panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* En su pestaña la salida tiene sitio de sobra: más alto que en línea. */
+.Cleaner .panel.output .CleanLog pre {
+  max-height: var(--size-log-tab-max-height);
+}
+
+/* Zona roja: la ventana entera late con un resplandor rojo por los bordes.
+   Fijo y sin eventos para no tapar ni bloquear nada debajo. */
+.Cleaner.alert::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-index-alert);
+  pointer-events: none;
+  box-shadow: inset 0 0 var(--size-alert-glow) rgb(var(--color-alert-rgb) / 70%);
+  animation: Cleaner-alert-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes Cleaner-alert-glow {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .Cleaner.alert::before {
+    animation: none;
+  }
+}
+
+/* Paso actual de la limpieza: enlace a la pestaña de salida. Una sola línea
+   recortada para que las rutas largas del script no muevan el layout. */
+.Cleaner .readout .hint.step {
+  max-width: var(--size-meter);
+  margin: var(--space-0);
+  padding: var(--space-0);
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.Cleaner .readout .hint.step:hover {
+  color: var(--color-primary-hover);
+}
