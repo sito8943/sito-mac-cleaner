@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -10,6 +11,8 @@ use tauri::{Emitter, Manager};
 const SCRIPT_RESOURCE: &str = "disk-clean";
 /// Bash del sistema (3.2): siempre existe y el script se mantiene compatible con él.
 const BASH: &str = "/bin/bash";
+/// Líneas de stderr que se guardan para el mensaje de error si el script falla.
+const STDERR_TAIL_LINES: usize = 5;
 /// Evento con cada línea que imprime disk-clean mientras limpia.
 /// Debe coincidir con CLEANER_EVENT.LOG en src/shared/services/constants.ts.
 pub const LOG_EVENT: &str = "cleaner://log";
@@ -50,6 +53,8 @@ pub struct CleanItem {
     /// `None` cuando el script no puede estimar lo que libera (p. ej. `pnpm store prune`).
     pub bytes: Option<u64>,
     pub label: String,
+    /// Aviso del script: `None`, o "app-bundle" (contiene un .app y se saltará).
+    pub note: Option<String>,
 }
 
 #[derive(Serialize, Clone, PartialEq, Debug)]
@@ -79,14 +84,24 @@ fn parse_list(stdout: &str) -> ScanResult {
         let fields: Vec<&str> = line.split('\t').collect();
         match fields.as_slice() {
             ["free", bytes] => result.free_bytes = bytes.parse().unwrap_or(0),
-            ["item", id, section, kind, bytes, label] => result.items.push(CleanItem {
-                id: id.to_string(),
-                section: section.to_string(),
-                kind: kind.to_string(),
-                // -1 = tamaño desconocido
-                bytes: bytes.parse::<i64>().ok().and_then(|b| u64::try_from(b).ok()),
-                label: label.to_string(),
-            }),
+            ["item", id, section, kind, bytes, label, rest @ ..] => {
+                result.items.push(CleanItem {
+                    id: id.to_string(),
+                    section: section.to_string(),
+                    kind: kind.to_string(),
+                    // -1 = tamaño desconocido
+                    bytes: bytes
+                        .parse::<i64>()
+                        .ok()
+                        .and_then(|b| u64::try_from(b).ok()),
+                    label: label.to_string(),
+                    // 7.º campo opcional: un script antiguo no lo imprime.
+                    note: rest
+                        .first()
+                        .filter(|note| !note.is_empty())
+                        .map(|note| note.to_string()),
+                })
+            }
             _ => {}
         }
     }
@@ -135,21 +150,38 @@ pub fn clean(app: &tauri::AppHandle, ids: &[String]) -> Result<(), String> {
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("{ERR_SCRIPT_FAILED}: {e}"))?;
+    // stderr se vacía en su propio hilo: si nadie lo lee, `rm` llena el pipe
+    // (p. ej. un "Operation not permitted" por archivo de un .app protegido),
+    // se bloquea al escribir y stdout nunca llega a EOF: la limpieza se cuelga.
+    let stderr_reader = child.stderr.take().map(|stderr| {
+        let app = app.clone();
+        std::thread::spawn(move || {
+            let mut tail: VecDeque<String> = VecDeque::with_capacity(STDERR_TAIL_LINES);
+            for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                let _ = app.emit(LOG_EVENT, &line);
+                if tail.len() == STDERR_TAIL_LINES {
+                    tail.pop_front();
+                }
+                tail.push_back(line);
+            }
+            Vec::from(tail).join("\n")
+        })
+    });
     if let Some(stdout) = child.stdout.take() {
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
             let _ = app.emit(LOG_EVENT, line);
         }
     }
-    let output = child
-        .wait_with_output()
+    let status = child
+        .wait()
         .map_err(|e| format!("{ERR_SCRIPT_FAILED}: {e}"))?;
-    if output.status.success() {
+    let stderr_tail = stderr_reader
+        .and_then(|handle| handle.join().ok())
+        .unwrap_or_default();
+    if status.success() {
         Ok(())
     } else {
-        Err(format!(
-            "{ERR_SCRIPT_FAILED}: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ))
+        Err(format!("{ERR_SCRIPT_FAILED}: {}", stderr_tail.trim()))
     }
 }
 
@@ -167,6 +199,16 @@ mod tests {
         assert_eq!(result.items[0].bytes, Some(42));
         assert_eq!(result.items[1].bytes, None);
         assert_eq!(result.items[1].label, "pnpm store prune");
+        assert_eq!(result.items[0].note, None);
+    }
+
+    #[test]
+    fn parses_item_notes() {
+        let out = "item\tLibrary_Caches_dotslash\tcaches\trm\t42\t~/Library/Caches/dotslash\tapp-bundle\n\
+                   item\tnpm-cache\tpackages\tcmd\t42\tnpm cache clean --force\t\n";
+        let result = parse_list(out);
+        assert_eq!(result.items[0].note.as_deref(), Some("app-bundle"));
+        assert_eq!(result.items[1].note, None);
     }
 
     #[test]
