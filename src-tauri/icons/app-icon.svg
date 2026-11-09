@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <pattern id="hazard" width="80" height="80" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="80" height="80" fill="#facc15"/>
+      <rect width="40" height="80" fill="#1a1f2b"/>
+    </pattern>
+    <radialGradient id="dome" cx="40%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#86efac"/>
+      <stop offset="0.55" stop-color="#22c55e"/>
+      <stop offset="1" stop-color="#14532d"/>
+    </radialGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#1a1f2b"/>
+  <circle cx="512" cy="512" r="300" fill="url(#hazard)"/>
+  <circle cx="512" cy="512" r="236" fill="#0b0e14"/>
+  <circle cx="512" cy="530" r="200" fill="#14532d"/>
+  <circle cx="512" cy="505" r="200" fill="url(#dome)"/>
+  <ellipse cx="450" cy="420" rx="80" ry="44" fill="#ffffff" opacity="0.35"/>
+</svg>
