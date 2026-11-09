@@ -1,6 +1,6 @@
 [package]
 name = "sito-mac-cleaner"
-version = "0.1.0"
+version = "0.2.0"
 description = "Limpieza de disco de macOS con disk-clean, desde la barra de menús"
 authors = ["sito8943"]
 edition = "2021"

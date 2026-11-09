@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-11-09
+
+### Added
+
+- Clean / Items / Output tabs in the window.
+- The clean button escalates with the meter: `CLEAN!` in yellow from 10 GB,
+  red `CLEAN!!!` from 30 GB, plus an alert banner with animated 🚨 sirens.
+- While cleaning, the hint shows the step `disk-clean` is on and links to the
+  Output tab.
+- `disk-clean --list` adds a note field; paths that contain a `.app` are
+  flagged (`app-bundle`) and shown with an info icon and tooltip.
+
+### Fixed
+
+- A cleanup could hang forever: `disk-clean`'s stderr was never read, so a
+  noisy `rm` filled the pipe and blocked. stderr is now drained and shown in
+  the output.
+- Caches holding a `.app` (e.g. `~/Library/Caches/dotslash`) are skipped with a
+  warning instead of waiting on macOS's App Management permission.
+
 ## [0.1.0] - 2026-11-09
 
 ### Added
@@ -22,4 +42,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - English and Spanish UI for the window and tray menu.
 - macOS DMG builds and Homebrew cask publishing workflows.
 
+[0.2.0]: https://github.com/sito8943/sito-mac-cleaner/releases/tag/v0.2.0
 [0.1.0]: https://github.com/sito8943/sito-mac-cleaner/releases/tag/v0.1.0
