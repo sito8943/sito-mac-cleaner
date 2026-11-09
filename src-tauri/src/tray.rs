@@ -29,8 +29,20 @@ fn build_menu(app: &tauri::AppHandle, reclaimable: Option<u64>) -> tauri::Result
     };
     menu.append(&MenuItem::new(app, header, false, None::<&str>)?)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
-    menu.append(&MenuItem::with_id(app, MENU_SHOW, texts().show, true, None::<&str>)?)?;
-    menu.append(&MenuItem::with_id(app, MENU_QUIT, texts().quit, true, None::<&str>)?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        MENU_SHOW,
+        texts().show,
+        true,
+        None::<&str>,
+    )?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        MENU_QUIT,
+        texts().quit,
+        true,
+        None::<&str>,
+    )?)?;
     Ok(menu)
 }
 
