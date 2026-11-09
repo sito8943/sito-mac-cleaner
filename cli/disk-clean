@@ -1,0 +1,322 @@
+#!/usr/bin/env bash
+# disk-clean — recurring macOS disk cleanup, and the engine behind Sito Mac Cleaner.
+# Usage: disk-clean [--dry-run] [--list] [--only ID,...] [--keep-days N] [--session-days N]
+#   --dry-run         show what would be removed and its size, delete nothing
+#   --list            machine-readable plan (TSV, format documented at the --list output below), delete nothing
+#   --only ID,...     clean only these items (ids as printed by --list)
+#   --keep-days N     newest N backup days to keep per ~/Backups/sito-vps project (default 7)
+#   --session-days N  delete Claude Code / Codex sessions untouched for N days (default 14)
+# Never touches ~/Virtual Machines.localized.
+#
+# Must stay bash 3.2 compatible (no associative arrays, no mapfile): the app runs it with
+# /bin/bash, and the shebang may resolve to it too.
+
+set -u
+# corepack shims (yarn, pnpm) must never stop on an invisible download prompt
+export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+export HOMEBREW_NO_AUTO_UPDATE=1
+
+MODE=clean # clean | dry | list
+ONLY=""
+KEEP_DAYS=7
+SESSION_DAYS=14
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dry-run|-n) MODE=dry ;;
+    --list) MODE=list ;;
+    --only) ONLY=",$2," ; shift ;;
+    --keep-days) KEEP_DAYS="$2"; shift ;;
+    --session-days) SESSION_DAYS="$2"; shift ;;
+    -h|--help) sed -n '2,9p' "$0"; exit 0 ;;
+    *) echo "unknown option: $1" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+# A GUI app starts this with launchd's bare PATH (/usr/bin:/bin:…). Append the usual tool
+# dirs so `has npm/brew/docker` finds the same tools a terminal does; appending keeps a
+# terminal's own order untouched.
+add_path_dir() { [ -d "$1" ] && case ":$PATH:" in *":$1:"*) ;; *) PATH="$PATH:$1" ;; esac; }
+for d in /opt/homebrew/bin /usr/local/bin "$HOME/Library/pnpm" "$HOME/.local/bin" \
+         "$HOME/Library/Application Support/Herd/bin" /Applications/Docker.app/Contents/Resources/bin; do
+  add_path_dir "$d"
+done
+if [ -f "$HOME/.nvm/alias/default" ]; then
+  nvm_default="$(cat "$HOME/.nvm/alias/default")"
+  nvm_bin="$(ls -d "$HOME/.nvm/versions/node/v${nvm_default#v}"*/bin 2>/dev/null | tail -1)"
+  [ -n "$nvm_bin" ] && add_path_dir "$nvm_bin"
+fi
+export PATH
+
+has() { command -v "$1" >/dev/null 2>&1; }
+free_bytes() { df -k / | awk 'NR==2 {printf "%.0f\n", $4 * 1024}'; }
+tilde() { printf '%s' "${1/#$HOME/~}"; }
+# stable item id from a path: "~/Library/Caches/Google" -> "Library_Caches_Google"
+slug() { printf '%s' "${1#$HOME/}" | tr -c 'A-Za-z0-9._-' '_'; }
+
+# bytes used by paths given one per line on stdin
+bytes_of_list() { tr '\n' '\0' | xargs -0 du -sk 2>/dev/null | awk '{s += $1} END {printf "%.0f\n", s * 1024}'; }
+bytes_of() { [ -e "$1" ] && printf '%s\n' "$1" | bytes_of_list || echo 0; }
+
+# "2.3GB" -> bytes; $2 = 1000 (docker) or 1024 (brew)
+to_bytes() {
+  awk -v s="$1" -v base="$2" 'BEGIN {
+    n = s + 0; u = toupper(substr(s, match(s, /[A-Za-z]/), 1)); m = 1
+    if (u == "K") m = base; else if (u == "M") m = base^2; else if (u == "G") m = base^3; else if (u == "T") m = base^4
+    printf "%.0f\n", n * m }'
+}
+
+# bytes -> "1.2G"; negative = unknown size
+human() {
+  awk -v b="$1" 'BEGIN {
+    if (b < 0) { print "?"; exit }
+    split("B K M G T", u, " "); i = 1
+    while (b >= 1024 && i < 5) { b /= 1024; i++ }
+    if (i == 1) printf "%d%s\n", b, u[i]; else printf "%.1f%s\n", b, u[i] }'
+}
+
+# ---------------------------------------------------------------------------------------------
+# Plan: every cleanable thing is one item. The CLI, --dry-run, --list and --only all read the
+# same list, so the app and the terminal can never disagree on what gets deleted.
+#   kind rm   -> DATA is a newline-separated list of paths, removed with rm -rf
+#   kind cmd  -> DATA is a command run from $HOME (sizes are estimates, -1 when unknown)
+#   kind info -> shown only, never cleaned
+# ---------------------------------------------------------------------------------------------
+N=0
+add() { # add ID SECTION KIND BYTES LABEL DATA
+  I_ID[N]="$1"; I_SEC[N]="$2"; I_KIND[N]="$3"; I_BYTES[N]="$4"; I_LABEL[N]="$5"; I_DATA[N]="$6"
+  N=$((N + 1))
+}
+
+# add_paths ID SECTION LABEL PATH...  (adds nothing when no path exists)
+add_paths() {
+  local id="$1" sec="$2" label="$3" p list=""
+  shift 3
+  for p in "$@"; do
+    [ -e "$p" ] || continue
+    case "$p" in *"Virtual Machines"*) continue ;; esac
+    list="$list$p
+"
+  done
+  [ -n "$list" ] || return 0
+  add "$id" "$sec" rm "$(printf '%s' "$list" | bytes_of_list)" "$label" "$list"
+}
+
+# one path, id and label derived from it
+add_path() { add_paths "$(slug "$1")" "$2" "$(tilde "$1")" "$1"; }
+
+section_title() {
+  case "$1" in
+    caches) echo "App caches" ;;
+    packages) echo "Package managers" ;;
+    docker) echo "Docker (unused images, build cache, anonymous volumes; named volumes are kept)" ;;
+    vscode) echo "VSCode duplicate extension versions (keeps newest)" ;;
+    backups) echo "VPS backups (keep newest $KEEP_DAYS days per project)" ;;
+    sessions) echo "Claude Code + Codex sessions (older than $SESSION_DAYS days)" ;;
+    chat) echo "Chat apps (size only, never deleted; clear media from the app)" ;;
+  esac
+}
+SECTIONS="caches packages docker vscode backups sessions chat"
+
+# --- caches -----------------------------------------------------------------------------------
+C="$HOME/Library/Caches"
+for p in "$C/Google" "$C/net.imput.helium" "$C/com.spotify.client" "$C/Waterfox" "$C/Firefox" \
+         "$C/Steam" "$C/ms-playwright" "$C/dotslash" "$C/node-gyp" "$C/typescript" \
+         "$HOME/Library/Application Support/Google/GoogleUpdater" \
+         "$HOME/Library/Application Support/Code/CachedExtensionVSIXs" \
+         "$HOME/Library/Application Support/Code/Cache" \
+         "$HOME/.gradle/caches"; do
+  add_path "$p" caches
+done
+# keep ~/.cache/node/corepack: it holds the yarn/pnpm binaries the corepack shims run;
+# wiping it made `yarn cache clean` below re-download yarn behind a hidden [Y/n] prompt
+if [ -d "$HOME/.cache" ]; then
+  for d in "$HOME"/.cache/*; do
+    if [ "$d" = "$HOME/.cache/node" ]; then
+      for n in "$d"/*; do [ "$n" = "$d/corepack" ] || add_path "$n" caches; done
+    else
+      add_path "$d" caches
+    fi
+  done
+fi
+
+# --- package managers -------------------------------------------------------------------------
+if has pnpm; then
+  # Each pnpm major keeps its own store, and `pnpm store prune` only prunes the
+  # store of the pnpm that runs it. Repos pinned to an older pnpm (packageManager,
+  # e.g. the HS monorepo on pnpm 10) still fill the old store, so prune each one
+  # with its own pnpm instead of deleting it (deleting forces full re-downloads).
+  # Prune frees an unknown share of the store, so its size is reported as unknown.
+  current_store="$(cd "$HOME" && pnpm store path 2>/dev/null)"
+  for s in "$HOME"/Library/pnpm/store/v*; do
+    [ -d "$s" ] || continue
+    v="${s##*/v}"
+    if [ "$s" = "$current_store" ]; then
+      add pnpm-prune packages cmd -1 "pnpm store prune  ($(tilde "$s"), $(human "$(bytes_of "$s")") total)" \
+        "pnpm store prune"
+      # pnpm 11+ global virtual store; prune leaves it even when nothing uses it
+      if [ -d "$s/links" ] &&
+         (cd "$HOME" && pnpm ls -g --depth 0 2>&1 | grep -q '^No global packages') &&
+         [ -z "$(find "$HOME" -maxdepth 8 -type l -lname "*pnpm/store/v$v/links*" -not -path "$HOME/Library/*" 2>/dev/null | head -1)" ]; then
+        add_paths pnpm-links packages "$(tilde "$s/links")  (unused global virtual store)" "$s/links"
+      fi
+    elif [ "$v" = 10 ]; then
+      add pnpm10-prune packages cmd -1 "pnpm@10 store prune  ($(tilde "$s"), $(human "$(bytes_of "$s")") total)" \
+        "pnpm dlx pnpm@10 store prune"
+    else
+      add_paths "pnpm-store-v$v" packages "$(tilde "$s")  (old pnpm store)" "$s"
+    fi
+  done
+  add_path "$C/pnpm" packages
+fi
+has npm && add npm-cache packages cmd "$(bytes_of "$HOME/.npm/_cacache")" "npm cache clean --force" \
+  "npm cache clean --force"
+add_path "$HOME/.npm/_npx" packages
+has yarn && add yarn-cache packages cmd "$(bytes_of "$C/Yarn")" "yarn cache clean" "yarn cache clean"
+if has composer; then
+  composer_bytes=$(( $(bytes_of "$C/composer") + $(bytes_of "$HOME/.composer/cache") ))
+  add composer-cache packages cmd "$composer_bytes" "composer clear-cache" "composer clear-cache"
+fi
+if has brew; then
+  brew_free="$(brew cleanup -s --prune=all --dry-run 2>/dev/null | sed -n 's/.*free approximately \([0-9.]*[KMGT]*B\).*/\1/p')"
+  add brew-cleanup packages cmd "$([ -n "$brew_free" ] && to_bytes "$brew_free" 1024 || echo 0)" \
+    "brew cleanup -s --prune=all" "brew cleanup -s --prune=all"
+fi
+
+# --- docker -----------------------------------------------------------------------------------
+if has docker && docker info >/dev/null 2>&1; then
+  docker_df="$(docker system df --format '{{.Type}}|{{.Reclaimable}}' 2>/dev/null)"
+  reclaimable() { printf '%s\n' "$docker_df" | awk -F'|' -v t="$1" '$1 == t {split($2, a, " "); print a[1]}'; }
+  add docker-images docker cmd "$(to_bytes "$(reclaimable Images)" 1000)" "docker image prune -af" "docker image prune -af"
+  add docker-build docker cmd "$(to_bytes "$(reclaimable 'Build Cache')" 1000)" "docker builder prune -af" "docker builder prune -af"
+  # docker's "reclaimable" counts unused named volumes too, which prune keeps: size unknown
+  add docker-volumes docker cmd -1 "docker volume prune -f" "docker volume prune -f"
+else
+  add docker-off docker info -1 "docker not running, skipped" ""
+fi
+
+# --- VSCode extensions ------------------------------------------------------------------------
+EXT="$HOME/.vscode/extensions"
+if [ -d "$EXT" ]; then
+  # folder = <publisher.name>-<version>[-<platform>]; group by id, keep highest version
+  old_exts="$(ls "$EXT" | grep -E '^[^.]+\.[^-]' |
+    sed -E 's/^(.+)-([0-9][^-]*)(-(darwin|linux|win32|universal|web|alpine)-.*)?$/\1	\2	&/' |
+    awk -F'\t' 'NF==3' | sort -t$'\t' -k1,1 -k2,2V |
+    awk -F'\t' -v ext="$EXT" '{ if ($1 == prev) print ext "/" prevdir; prev = $1; prevdir = $3 }')"
+  if [ -n "$old_exts" ]; then
+    n=$(printf '%s\n' "$old_exts" | wc -l | tr -d ' ')
+    add vscode-ext vscode rm "$(printf '%s\n' "$old_exts" | bytes_of_list)" "~/.vscode/extensions ($n old versions)" \
+      "$old_exts"
+  fi
+fi
+
+# --- VPS backups ------------------------------------------------------------------------------
+B="$HOME/Backups/sito-vps"
+if [ -d "$B" ]; then
+  for proj in "$B"/*/; do
+    proj="${proj%/}"
+    [ -d "$proj" ] || continue
+    # backup dates come from the filename stamp (_YYYYMMDD_), not mtime, so a
+    # broken pull job never wipes the last copies
+    keep="$(ls "$proj" | grep -oE '_[0-9]{8}_' | sort -u | tail -n "$KEEP_DAYS")"
+    [ -n "$keep" ] || continue
+    old_files="$(ls "$proj" | grep -E '_[0-9]{8}_' | grep -vF "$keep" | sed "s|^|$proj/|")"
+    [ -n "$old_files" ] || continue
+    n=$(printf '%s\n' "$old_files" | wc -l | tr -d ' ')
+    add "backups-$(slug "${proj##*/}")" backups rm "$(printf '%s\n' "$old_files" | bytes_of_list)" \
+      "$(tilde "$proj") ($n files)" "$old_files"
+  done
+fi
+
+# --- Claude Code + Codex sessions -------------------------------------------------------------
+P="$HOME/.claude/projects"
+if [ -d "$P" ]; then
+  # a session = <project>/<id>.jsonl + <project>/<id>/ + ~/.claude/file-history/<id>; memory/ is never touched
+  claude_old="$(find "$P" -mindepth 2 -maxdepth 2 -name '*.jsonl' -mtime +"$SESSION_DAYS" |
+    while read -r f; do
+      id="$(basename "$f" .jsonl)"
+      echo "$f"
+      [ -d "${f%.jsonl}" ] && echo "${f%.jsonl}"
+      [ -d "$HOME/.claude/file-history/$id" ] && echo "$HOME/.claude/file-history/$id"
+    done)"
+  if [ -n "$claude_old" ]; then
+    n=$(printf '%s\n' "$claude_old" | grep -c '\.jsonl$')
+    add sessions-claude sessions rm "$(printf '%s\n' "$claude_old" | bytes_of_list)" "~/.claude/projects ($n sessions)" \
+      "$claude_old"
+  fi
+fi
+CX="$HOME/.codex"
+if [ -d "$CX/sessions" ]; then
+  codex_old="$(find "$CX/sessions" "$CX/archived_sessions" -name '*.jsonl' -mtime +"$SESSION_DAYS" 2>/dev/null)"
+  if [ -n "$codex_old" ]; then
+    n=$(printf '%s\n' "$codex_old" | wc -l | tr -d ' ')
+    add sessions-codex sessions rm "$(printf '%s\n' "$codex_old" | bytes_of_list)" \
+      "~/.codex/sessions + archived_sessions ($n sessions)" "$codex_old"
+  fi
+fi
+
+# --- chat apps (info only) --------------------------------------------------------------------
+G="$HOME/Library/Group Containers"
+for app in "WhatsApp:group.net.whatsapp.WhatsApp.shared" "Telegram:6N38VWS5BX.ru.keepcoder.Telegram"; do
+  d="$G/${app#*:}"
+  [ -d "$d" ] && add "chat-${app%%:*}" chat info "$(bytes_of "$d")" "${app%%:*}" ""
+done
+
+# ---------------------------------------------------------------------------------------------
+# Output
+# ---------------------------------------------------------------------------------------------
+
+# --list: first line "free<TAB>bytes", then one line per item:
+#   item<TAB>id<TAB>section<TAB>kind<TAB>bytes<TAB>label     (bytes -1 = unknown)
+if [ "$MODE" = list ]; then
+  printf 'free\t%s\n' "$(free_bytes)"
+  i=0
+  while [ $i -lt $N ]; do
+    printf 'item\t%s\t%s\t%s\t%s\t%s\n' "${I_ID[i]}" "${I_SEC[i]}" "${I_KIND[i]}" "${I_BYTES[i]}" "${I_LABEL[i]}"
+    i=$((i + 1))
+  done
+  exit 0
+fi
+
+selected() {
+  [ -z "$ONLY" ] && return 0
+  case "$ONLY" in *",$1,"*) return 0 ;; *) return 1 ;; esac
+}
+
+run_item() {
+  local i=$1
+  case "${I_KIND[i]}" in
+    rm)
+      printf '  %-8s %s\n' "$(human "${I_BYTES[i]}")" "${I_LABEL[i]}"
+      [ "$MODE" = dry ] || printf '%s' "${I_DATA[i]}" | tr '\n' '\0' | xargs -0 rm -rf
+      # codex keeps one folder per day; drop the ones the removal emptied
+      [ "$MODE" = dry ] || [ "${I_ID[i]}" != sessions-codex ] || find "$CX/sessions" -mindepth 1 -type d -empty -delete
+      ;;
+    cmd)
+      if [ "$MODE" = dry ]; then
+        printf '  %-8s would run: %s\n' "$(human "${I_BYTES[i]}")" "${I_DATA[i]}"
+      else
+        printf '  %-8s $ %s\n' "$(human "${I_BYTES[i]}")" "${I_DATA[i]}"
+        (cd "$HOME" && eval "${I_DATA[i]}") </dev/null 2>&1 | tail -2 | sed 's/^/    /'
+      fi
+      ;;
+    info)
+      printf '  %-8s %s\n' "$(human "${I_BYTES[i]}")" "${I_LABEL[i]}"
+      ;;
+  esac
+}
+
+echo "Free before: $(human "$(free_bytes)")$([ "$MODE" = dry ] && echo '  (dry run)')"
+for sec in $SECTIONS; do
+  printed=0
+  i=0
+  while [ $i -lt $N ]; do
+    if [ "${I_SEC[i]}" = "$sec" ] && selected "${I_ID[i]}"; then
+      [ $printed -eq 1 ] || { printf '\n== %s\n' "$(section_title "$sec")"; printed=1; }
+      run_item $i
+    fi
+    i=$((i + 1))
+  done
+done
+echo
+echo "Free after: $(human "$(free_bytes)")"
