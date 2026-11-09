@@ -1,0 +1,73 @@
+.VuMeter {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--size-meter);
+  aspect-ratio: 1;
+}
+
+.VuMeter-dial {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Apagado = el mismo color muy tenue, como un LED real sin corriente. */
+.VuMeter-led {
+  stroke: currentColor;
+  stroke-width: var(--led-stroke-width);
+  stroke-linecap: round;
+  opacity: 0.15;
+  transition:
+    opacity 0.25s ease,
+    filter 0.25s ease;
+}
+
+.VuMeter-led.ok {
+  color: var(--color-led-ok);
+}
+
+.VuMeter-led.warn {
+  color: var(--color-led-warn);
+}
+
+.VuMeter-led.danger {
+  color: var(--color-led-danger);
+}
+
+.VuMeter-led.lit {
+  opacity: 1;
+  filter: drop-shadow(0 0 var(--blur-led) currentColor);
+}
+
+/* Analizando: un barrido recorre el arco; --led-index escalona cada LED. */
+.VuMeter.busy .VuMeter-led {
+  opacity: 0.15;
+  filter: none;
+  animation: VuMeter-chase 1.2s linear infinite;
+  animation-delay: calc(var(--led-index) * 50ms);
+}
+
+@keyframes VuMeter-chase {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  8% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 0.15;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .VuMeter.busy .VuMeter-led {
+    animation-duration: 3s;
+  }
+}
+
+.VuMeter-center {
+  position: relative;
+}

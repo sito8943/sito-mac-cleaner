@@ -1,0 +1,25 @@
+.CleanLog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.CleanLog h2 {
+  margin: var(--space-0);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Aspecto de terminal en ambos temas: es la salida literal del script. */
+.CleanLog pre {
+  margin: var(--space-0);
+  max-height: var(--size-log-max-height);
+  overflow: auto;
+  border-radius: var(--radius-md);
+  background: var(--color-log-background);
+  color: var(--color-log-text);
+  padding: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  user-select: text;
+}
