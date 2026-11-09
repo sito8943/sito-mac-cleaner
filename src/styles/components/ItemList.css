@@ -65,3 +65,11 @@
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* Aviso del script: icono en color de alerta junto a la ruta. */
+.ItemLabel .note {
+  flex: none;
+  display: inline-flex;
+  color: var(--color-warning);
+  cursor: help;
+}

@@ -9,6 +9,8 @@ export interface CleanItem {
   bytes: number | null;
   /** Ruta o comando, tal cual lo imprime el script. */
   label: string;
+  /** Aviso del script sobre el elemento (ver ITEM_NOTE); `null` si no hay. */
+  note: string | null;
 }
 
 /** rm = borra rutas, cmd = ejecuta un comando, info = solo se muestra. */

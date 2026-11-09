@@ -83,9 +83,26 @@ human() {
 #   kind info -> shown only, never cleaned
 # ---------------------------------------------------------------------------------------------
 N=0
-add() { # add ID SECTION KIND BYTES LABEL DATA
-  I_ID[N]="$1"; I_SEC[N]="$2"; I_KIND[N]="$3"; I_BYTES[N]="$4"; I_LABEL[N]="$5"; I_DATA[N]="$6"
+add() { # add ID SECTION KIND BYTES LABEL DATA [NOTE]
+  I_ID[N]="$1"; I_SEC[N]="$2"; I_KIND[N]="$3"; I_BYTES[N]="$4"; I_LABEL[N]="$5"; I_DATA[N]="$6"; I_NOTE[N]="${7:-}"
   N=$((N + 1))
+}
+
+# macOS (Sequoia+) only lets apps with the App Management permission delete a .app bundle;
+# without it rm waits forever on a prompt that often never shows. Such paths are skipped with
+# a warning instead of hanging the whole cleanup.
+has_app_bundle() { [ -d "$1" ] && [ -n "$(find "$1" -name '*.app' -type d -prune -print -quit 2>/dev/null)" ]; }
+
+remove_paths() { # newline-separated paths on stdin
+  local p
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    if has_app_bundle "$p"; then
+      printf '    ! skipped %s: it contains an app and macOS needs App Management permission to delete it. Remove it from Finder, or grant it in System Settings > Privacy & Security > App Management.\n' "$(tilde "$p")"
+      continue
+    fi
+    rm -rf "$p"
+  done
 }
 
 # add_paths ID SECTION LABEL PATH...  (adds nothing when no path exists)
@@ -99,7 +116,11 @@ add_paths() {
 "
   done
   [ -n "$list" ] || return 0
-  add "$id" "$sec" rm "$(printf '%s' "$list" | bytes_of_list)" "$label" "$list"
+  # warn up front that this one will be skipped (see has_app_bundle); the app shows the
+  # note as an info icon, the terminal as a suffix
+  local note=""
+  for p in "$@"; do has_app_bundle "$p" && { note=app-bundle; break; }; done
+  add "$id" "$sec" rm "$(printf '%s' "$list" | bytes_of_list)" "$label" "$list" "$note"
 }
 
 # one path, id and label derived from it
@@ -267,12 +288,13 @@ done
 # ---------------------------------------------------------------------------------------------
 
 # --list: first line "free<TAB>bytes", then one line per item:
-#   item<TAB>id<TAB>section<TAB>kind<TAB>bytes<TAB>label     (bytes -1 = unknown)
+#   item<TAB>id<TAB>section<TAB>kind<TAB>bytes<TAB>label<TAB>note     (bytes -1 = unknown;
+#   note: empty, or app-bundle = contains a .app and will be skipped)
 if [ "$MODE" = list ]; then
   printf 'free\t%s\n' "$(free_bytes)"
   i=0
   while [ $i -lt $N ]; do
-    printf 'item\t%s\t%s\t%s\t%s\t%s\n' "${I_ID[i]}" "${I_SEC[i]}" "${I_KIND[i]}" "${I_BYTES[i]}" "${I_LABEL[i]}"
+    printf 'item\t%s\t%s\t%s\t%s\t%s\t%s\n' "${I_ID[i]}" "${I_SEC[i]}" "${I_KIND[i]}" "${I_BYTES[i]}" "${I_LABEL[i]}" "${I_NOTE[i]}"
     i=$((i + 1))
   done
   exit 0
@@ -287,8 +309,8 @@ run_item() {
   local i=$1
   case "${I_KIND[i]}" in
     rm)
-      printf '  %-8s %s\n' "$(human "${I_BYTES[i]}")" "${I_LABEL[i]}"
-      [ "$MODE" = dry ] || printf '%s' "${I_DATA[i]}" | tr '\n' '\0' | xargs -0 rm -rf
+      printf '  %-8s %s%s\n' "$(human "${I_BYTES[i]}")" "${I_LABEL[i]}" "$([ "${I_NOTE[i]}" = app-bundle ] && echo '  (contains an app, will be skipped)')"
+      [ "$MODE" = dry ] || printf '%s\n' "${I_DATA[i]}" | remove_paths
       # codex keeps one folder per day; drop the ones the removal emptied
       [ "$MODE" = dry ] || [ "${I_ID[i]}" != sessions-codex ] || find "$CX/sessions" -mindepth 1 -type d -empty -delete
       ;;
