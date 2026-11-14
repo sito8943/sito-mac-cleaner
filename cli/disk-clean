@@ -50,7 +50,8 @@ export PATH
 
 has() { command -v "$1" >/dev/null 2>&1; }
 free_bytes() { df -k / | awk 'NR==2 {printf "%.0f\n", $4 * 1024}'; }
-tilde() { printf '%s' "${1/#$HOME/~}"; }
+# no ${1/#$HOME/~}: bash 5 tilde-expands the replacement back to $HOME
+tilde() { case "$1" in "$HOME"|"$HOME"/*) printf '~%s' "${1#"$HOME"}" ;; *) printf '%s' "$1" ;; esac; }
 # stable item id from a path: "~/Library/Caches/Google" -> "Library_Caches_Google"
 slug() { printf '%s' "${1#$HOME/}" | tr -c 'A-Za-z0-9._-' '_'; }
 
