@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-11-14
+
+### Added
+
+- node_modules section: one item per `node_modules` under `~/Documents`
+  (`--projects DIR` to change the folder). (14bae7c)
+- Tauri / Rust builds section: one item per `target/` next to a `Cargo.toml`.
+  (14bae7c)
+- Trash section: empties `~/.Trash` through Finder. Its size is unknown unless
+  the app has Full Disk Access. (14bae7c)
+
+### Fixed
+
+- `disk-clean` printed full paths instead of `~/…` when run with bash 5.
+  (f8b9626)
+
 ## [0.2.0] - 2026-11-09
 
 ### Added
