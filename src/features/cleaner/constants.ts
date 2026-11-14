@@ -24,10 +24,13 @@ export const ITEM_NOTE = {
 export const SECTION = {
   CACHES: "caches",
   PACKAGES: "packages",
+  NODE_MODULES: "node-modules",
+  RUST_TARGET: "rust-target",
   DOCKER: "docker",
   VSCODE: "vscode",
   BACKUPS: "backups",
   SESSIONS: "sessions",
+  TRASH: "trash",
   CHAT: "chat",
 } as const;
 
