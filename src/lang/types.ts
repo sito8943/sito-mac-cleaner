@@ -43,10 +43,13 @@ export interface Dictionary {
   sizeUnknown: string;
   sectionCaches: string;
   sectionPackages: string;
+  sectionNodeModules: string;
+  sectionRustTarget: string;
   sectionDocker: string;
   sectionVscode: string;
   sectionBackups: string;
   sectionSessions: string;
+  sectionTrash: string;
   sectionChat: string;
   dismiss: string;
   errorScriptNotFound: string;

@@ -6,6 +6,7 @@
 #   --only ID,...     clean only these items (ids as printed by --list)
 #   --keep-days N     newest N backup days to keep per ~/Backups/sito-vps project (default 7)
 #   --session-days N  delete Claude Code / Codex sessions untouched for N days (default 14)
+#   --projects DIR    where to look for node_modules and Rust target/ folders (default ~/Documents)
 # Never touches ~/Virtual Machines.localized.
 #
 # Must stay bash 3.2 compatible (no associative arrays, no mapfile): the app runs it with
@@ -20,6 +21,7 @@ MODE=clean # clean | dry | list
 ONLY=""
 KEEP_DAYS=7
 SESSION_DAYS=14
+PROJECTS="$HOME/Documents"
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run|-n) MODE=dry ;;
@@ -27,7 +29,8 @@ while [ $# -gt 0 ]; do
     --only) ONLY=",$2," ; shift ;;
     --keep-days) KEEP_DAYS="$2"; shift ;;
     --session-days) SESSION_DAYS="$2"; shift ;;
-    -h|--help) sed -n '2,9p' "$0"; exit 0 ;;
+    --projects) PROJECTS="${2%/}"; shift ;;
+    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 1 ;;
   esac
   shift
@@ -50,7 +53,8 @@ export PATH
 
 has() { command -v "$1" >/dev/null 2>&1; }
 free_bytes() { df -k / | awk 'NR==2 {printf "%.0f\n", $4 * 1024}'; }
-tilde() { printf '%s' "${1/#$HOME/~}"; }
+# no ${1/#$HOME/~}: bash 5 tilde-expands the replacement back to $HOME
+tilde() { case "$1" in "$HOME"|"$HOME"/*) printf '~%s' "${1#"$HOME"}" ;; *) printf '%s' "$1" ;; esac; }
 # stable item id from a path: "~/Library/Caches/Google" -> "Library_Caches_Google"
 slug() { printf '%s' "${1#$HOME/}" | tr -c 'A-Za-z0-9._-' '_'; }
 
@@ -130,14 +134,17 @@ section_title() {
   case "$1" in
     caches) echo "App caches" ;;
     packages) echo "Package managers" ;;
+    node-modules) echo "node_modules under $(tilde "$PROJECTS") (pnpm install brings them back)" ;;
+    rust-target) echo "Rust / Tauri builds (target/ under $(tilde "$PROJECTS"); cargo build brings them back)" ;;
     docker) echo "Docker (unused images, build cache, anonymous volumes; named volumes are kept)" ;;
     vscode) echo "VSCode duplicate extension versions (keeps newest)" ;;
     backups) echo "VPS backups (keep newest $KEEP_DAYS days per project)" ;;
     sessions) echo "Claude Code + Codex sessions (older than $SESSION_DAYS days)" ;;
+    trash) echo "Trash" ;;
     chat) echo "Chat apps (size only, never deleted; clear media from the app)" ;;
   esac
 }
-SECTIONS="caches packages docker vscode backups sessions chat"
+SECTIONS="caches packages node-modules rust-target docker vscode backups sessions trash chat"
 
 # --- caches -----------------------------------------------------------------------------------
 C="$HOME/Library/Caches"
@@ -202,6 +209,23 @@ if has brew; then
   brew_free="$(brew cleanup -s --prune=all --dry-run 2>/dev/null | sed -n 's/.*free approximately \([0-9.]*[KMGT]*B\).*/\1/p')"
   add brew-cleanup packages cmd "$([ -n "$brew_free" ] && to_bytes "$brew_free" 1024 || echo 0)" \
     "brew cleanup -s --prune=all" "brew cleanup -s --prune=all"
+fi
+
+# --- project build folders -------------------------------------------------------------------
+# One item per node_modules and per Rust target/ (a target/ next to a Cargo.toml: every Tauri
+# src-tauri/target, plus plain crates; Maven's target/ has no Cargo.toml and is left alone).
+# find stops at the first node_modules/target, so nested ones are never listed twice, and skips
+# hidden dirs (.git, .next…) to stay fast.
+if [ -d "$PROJECTS" ]; then
+  while IFS= read -r p; do
+    case "${p##*/}" in
+      node_modules) add_path "$p" node-modules ;;
+      target) [ -f "${p%/*}/Cargo.toml" ] && add_path "$p" rust-target ;;
+    esac
+  done <<EOF
+$(find "$PROJECTS" -mindepth 1 \( -name node_modules -o -name target -o -name '.?*' \) -prune \
+    -type d \( -name node_modules -o -name target \) -print 2>/dev/null | sort)
+EOF
 fi
 
 # --- docker -----------------------------------------------------------------------------------
@@ -274,6 +298,17 @@ if [ -d "$CX/sessions" ]; then
     add sessions-codex sessions rm "$(printf '%s\n' "$codex_old" | bytes_of_list)" \
       "~/.codex/sessions + archived_sessions ($n sessions)" "$codex_old"
   fi
+fi
+
+# --- Trash ----------------------------------------------------------------------------------
+# ~/.Trash is privacy-protected: without Full Disk Access it can't even be listed, so its size
+# is unknown. Finder empties it either way (the first time, macOS asks to let the app control it).
+T="$HOME/.Trash"
+EMPTY_TRASH="osascript -e 'tell application \"Finder\" to empty trash'"
+if trash_list="$(ls -A "$T" 2>/dev/null)"; then
+  [ -n "$trash_list" ] && add trash trash cmd "$(bytes_of "$T")" "$(tilde "$T")" "$EMPTY_TRASH"
+else
+  add trash trash cmd -1 "$(tilde "$T")" "$EMPTY_TRASH"
 fi
 
 # --- chat apps (info only) --------------------------------------------------------------------

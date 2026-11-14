@@ -27,10 +27,13 @@ de los dos, inglés).
 | --------------------- | -------------------------------------------------------------------------------------------------------- |
 | Cachés de apps        | Borra cachés de navegadores, Spotify, Steam, Playwright, Gradle, VS Code y `~/.cache` (menos corepack).  |
 | Gestores de paquetes  | `pnpm store prune` (uno por cada versión de store), `npm`/`yarn`/`composer` cache, `brew cleanup`.       |
+| node_modules          | Cada `node_modules` bajo `~/Documents`, una fila por proyecto. `pnpm install` los recupera.              |
+| Builds de Tauri/Rust  | Cada `target/` junto a un `Cargo.toml` (todos los `src-tauri/target`). `cargo build` los recupera.       |
 | Docker                | Imágenes sin usar, caché de build y volúmenes anónimos. Los volúmenes con nombre se conservan.           |
 | VS Code               | Versiones viejas de extensiones; conserva la más nueva.                                                  |
 | Backups del VPS       | `~/Backups/sito-vps/<proyecto>`: conserva los 7 días más recientes según la fecha del nombre de archivo. |
 | Sesiones Claude/Codex | Sesiones de Claude Code y Codex sin tocar en 14 días. La memoria de Claude nunca se toca.                |
+| Papelera              | Vacía `~/.Trash` con Finder (la primera vez macOS pide permiso para controlarlo).                        |
 | Apps de chat          | Solo informa del tamaño de WhatsApp y Telegram; eso se limpia desde cada app.                            |
 
 Nunca toca `~/Virtual Machines.localized`. Una sección que no aplica a tu Mac
@@ -48,6 +51,7 @@ cli/disk-clean                      # limpia todo
 cli/disk-clean --list               # plan en TSV (lo que usa la app)
 cli/disk-clean --only npm-cache,docker-images
 cli/disk-clean --keep-days 14 --session-days 30
+cli/disk-clean --projects ~/Code       # dónde buscar node_modules y target/
 ```
 
 Para tenerlo en el PATH, enlázalo en lugar de copiarlo; así la app y la

@@ -49,10 +49,15 @@ export const en: Dictionary = {
   sizeUnknown: "The script can't estimate how much this frees",
   sectionCaches: "App caches",
   sectionPackages: "Package managers",
+  sectionNodeModules:
+    "node_modules in ~/Documents (pnpm install brings them back)",
+  sectionRustTarget:
+    "Tauri / Rust builds (target/; cargo build brings them back)",
   sectionDocker: "Docker",
   sectionVscode: "Old VS Code extensions",
   sectionBackups: "VPS backups",
   sectionSessions: "Claude Code and Codex sessions",
+  sectionTrash: "Trash (emptied through Finder)",
   sectionChat: "Chat apps (size only; clean them from the app)",
   dismiss: "Close",
   errorScriptNotFound: "Can't find disk-clean inside the app.",
