@@ -327,6 +327,7 @@ done
 # --list: first line "free<TAB>bytes", then one line per item:
 #   item<TAB>id<TAB>section<TAB>kind<TAB>bytes<TAB>label<TAB>note     (bytes -1 = unknown;
 #   note: empty, or app-bundle = contains a .app and will be skipped)
+# then the --dry-run report, one "log<TAB>line" per line (the app shows it as the output).
 if [ "$MODE" = list ]; then
   printf 'free\t%s\n' "$(free_bytes)"
   i=0
@@ -334,7 +335,8 @@ if [ "$MODE" = list ]; then
     printf 'item\t%s\t%s\t%s\t%s\t%s\t%s\n' "${I_ID[i]}" "${I_SEC[i]}" "${I_KIND[i]}" "${I_BYTES[i]}" "${I_LABEL[i]}" "${I_NOTE[i]}"
     i=$((i + 1))
   done
-  exit 0
+  MODE=dry
+  LIST_LOG=1
 fi
 
 selected() {
@@ -365,17 +367,25 @@ run_item() {
   esac
 }
 
-echo "Free before: $(human "$(free_bytes)")$([ "$MODE" = dry ] && echo '  (dry run)')"
-for sec in $SECTIONS; do
-  printed=0
-  i=0
-  while [ $i -lt $N ]; do
-    if [ "${I_SEC[i]}" = "$sec" ] && selected "${I_ID[i]}"; then
-      [ $printed -eq 1 ] || { printf '\n== %s\n' "$(section_title "$sec")"; printed=1; }
-      run_item $i
-    fi
-    i=$((i + 1))
+report() {
+  echo "Free before: $(human "$(free_bytes)")$([ "$MODE" = dry ] && echo '  (dry run)')"
+  for sec in $SECTIONS; do
+    printed=0
+    i=0
+    while [ $i -lt $N ]; do
+      if [ "${I_SEC[i]}" = "$sec" ] && selected "${I_ID[i]}"; then
+        [ $printed -eq 1 ] || { printf '\n== %s\n' "$(section_title "$sec")"; printed=1; }
+        run_item $i
+      fi
+      i=$((i + 1))
+    done
   done
-done
-echo
-echo "Free after: $(human "$(free_bytes)")"
+  echo
+  echo "Free after: $(human "$(free_bytes)")"
+}
+
+if [ -n "${LIST_LOG:-}" ]; then
+  report | sed 's/^/log	/'
+else
+  report
+fi
