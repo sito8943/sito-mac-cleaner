@@ -45,6 +45,7 @@ export interface Dictionary {
   sectionPackages: string;
   sectionNodeModules: string;
   sectionRustTarget: string;
+  sectionNextBuild: string;
   sectionDocker: string;
   sectionVscode: string;
   sectionBackups: string;

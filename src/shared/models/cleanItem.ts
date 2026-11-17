@@ -19,4 +19,6 @@ export type CleanItemKind = "rm" | "cmd" | "info";
 export interface ScanResult {
   freeBytes: number;
   items: CleanItem[];
+  /** Informe del dry run (`disk-clean --dry-run`), una línea por entrada. */
+  log: string[];
 }

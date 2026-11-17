@@ -62,6 +62,8 @@ pub struct CleanItem {
 pub struct ScanResult {
     pub free_bytes: u64,
     pub items: Vec<CleanItem>,
+    /// Informe de `--dry-run` que acompaña a `--list`: lo que se ve en la pestaña Salida.
+    pub log: Vec<String>,
 }
 
 /// En la app empaquetada el script va en Resources; en `tauri dev` también se copia
@@ -74,13 +76,20 @@ fn script_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .ok_or_else(|| ERR_SCRIPT_NOT_FOUND.to_string())
 }
 
-/// Salida de `disk-clean --list`: "free\t<bytes>" y una línea "item\t…" por elemento.
+/// Salida de `disk-clean --list`: "free\t<bytes>", una línea "item\t…" por elemento
+/// y el informe del dry run como líneas "log\t…".
 fn parse_list(stdout: &str) -> ScanResult {
     let mut result = ScanResult {
         free_bytes: 0,
         items: Vec::new(),
+        log: Vec::new(),
     };
     for line in stdout.lines() {
+        // El texto del informe puede llevar tabuladores: no se trocea.
+        if let Some(text) = line.strip_prefix("log\t") {
+            result.log.push(text.to_string());
+            continue;
+        }
         let fields: Vec<&str> = line.split('\t').collect();
         match fields.as_slice() {
             ["free", bytes] => result.free_bytes = bytes.parse().unwrap_or(0),
@@ -200,6 +209,15 @@ mod tests {
         assert_eq!(result.items[1].bytes, None);
         assert_eq!(result.items[1].label, "pnpm store prune");
         assert_eq!(result.items[0].note, None);
+        assert!(result.log.is_empty());
+    }
+
+    #[test]
+    fn parses_dry_run_log() {
+        let out = "free\t1000\nlog\tFree before: 1G  (dry run)\nlog\t\nlog\t  1M\ta\tb\n";
+        let result = parse_list(out);
+        assert_eq!(result.items.len(), 0);
+        assert_eq!(result.log, vec!["Free before: 1G  (dry run)", "", "  1M\ta\tb"]);
     }
 
     #[test]

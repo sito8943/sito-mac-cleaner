@@ -6,7 +6,7 @@
 #   --only ID,...     clean only these items (ids as printed by --list)
 #   --keep-days N     newest N backup days to keep per ~/Backups/sito-vps project (default 7)
 #   --session-days N  delete Claude Code / Codex sessions untouched for N days (default 14)
-#   --projects DIR    where to look for node_modules and Rust target/ folders (default ~/Documents)
+#   --projects DIR    where to look for node_modules, Rust target/ and Next.js .next/ folders (default ~/Documents)
 # Never touches ~/Virtual Machines.localized.
 #
 # Must stay bash 3.2 compatible (no associative arrays, no mapfile): the app runs it with
@@ -136,6 +136,7 @@ section_title() {
     packages) echo "Package managers" ;;
     node-modules) echo "node_modules under $(tilde "$PROJECTS") (pnpm install brings them back)" ;;
     rust-target) echo "Rust / Tauri builds (target/ under $(tilde "$PROJECTS"); cargo build brings them back)" ;;
+    next-build) echo "Next.js builds (.next/ under $(tilde "$PROJECTS"); next build / next dev brings them back)" ;;
     docker) echo "Docker (unused images, build cache, anonymous volumes; named volumes are kept)" ;;
     vscode) echo "VSCode duplicate extension versions (keeps newest)" ;;
     backups) echo "VPS backups (keep newest $KEEP_DAYS days per project)" ;;
@@ -144,7 +145,7 @@ section_title() {
     chat) echo "Chat apps (size only, never deleted; clear media from the app)" ;;
   esac
 }
-SECTIONS="caches packages node-modules rust-target docker vscode backups sessions trash chat"
+SECTIONS="caches packages node-modules rust-target next-build docker vscode backups sessions trash chat"
 
 # --- caches -----------------------------------------------------------------------------------
 C="$HOME/Library/Caches"
@@ -212,19 +213,20 @@ if has brew; then
 fi
 
 # --- project build folders -------------------------------------------------------------------
-# One item per node_modules and per Rust target/ (a target/ next to a Cargo.toml: every Tauri
-# src-tauri/target, plus plain crates; Maven's target/ has no Cargo.toml and is left alone).
-# find stops at the first node_modules/target, so nested ones are never listed twice, and skips
-# hidden dirs (.git, .next…) to stay fast.
+# One item per node_modules, per Rust target/ (a target/ next to a Cargo.toml: every Tauri
+# src-tauri/target, plus plain crates; Maven's target/ has no Cargo.toml and is left alone) and
+# per Next.js .next/ (next to a package.json). find stops at the first match, so nested ones are
+# never listed twice, and skips the other hidden dirs (.git…) to stay fast.
 if [ -d "$PROJECTS" ]; then
   while IFS= read -r p; do
     case "${p##*/}" in
       node_modules) add_path "$p" node-modules ;;
       target) [ -f "${p%/*}/Cargo.toml" ] && add_path "$p" rust-target ;;
+      .next) [ -f "${p%/*}/package.json" ] && add_path "$p" next-build ;;
     esac
   done <<EOF
 $(find "$PROJECTS" -mindepth 1 \( -name node_modules -o -name target -o -name '.?*' \) -prune \
-    -type d \( -name node_modules -o -name target \) -print 2>/dev/null | sort)
+    -type d \( -name node_modules -o -name target -o -name .next \) -print 2>/dev/null | sort)
 EOF
 fi
 
@@ -325,6 +327,7 @@ done
 # --list: first line "free<TAB>bytes", then one line per item:
 #   item<TAB>id<TAB>section<TAB>kind<TAB>bytes<TAB>label<TAB>note     (bytes -1 = unknown;
 #   note: empty, or app-bundle = contains a .app and will be skipped)
+# then the --dry-run report, one "log<TAB>line" per line (the app shows it as the output).
 if [ "$MODE" = list ]; then
   printf 'free\t%s\n' "$(free_bytes)"
   i=0
@@ -332,7 +335,8 @@ if [ "$MODE" = list ]; then
     printf 'item\t%s\t%s\t%s\t%s\t%s\t%s\n' "${I_ID[i]}" "${I_SEC[i]}" "${I_KIND[i]}" "${I_BYTES[i]}" "${I_LABEL[i]}" "${I_NOTE[i]}"
     i=$((i + 1))
   done
-  exit 0
+  MODE=dry
+  LIST_LOG=1
 fi
 
 selected() {
@@ -363,17 +367,25 @@ run_item() {
   esac
 }
 
-echo "Free before: $(human "$(free_bytes)")$([ "$MODE" = dry ] && echo '  (dry run)')"
-for sec in $SECTIONS; do
-  printed=0
-  i=0
-  while [ $i -lt $N ]; do
-    if [ "${I_SEC[i]}" = "$sec" ] && selected "${I_ID[i]}"; then
-      [ $printed -eq 1 ] || { printf '\n== %s\n' "$(section_title "$sec")"; printed=1; }
-      run_item $i
-    fi
-    i=$((i + 1))
+report() {
+  echo "Free before: $(human "$(free_bytes)")$([ "$MODE" = dry ] && echo '  (dry run)')"
+  for sec in $SECTIONS; do
+    printed=0
+    i=0
+    while [ $i -lt $N ]; do
+      if [ "${I_SEC[i]}" = "$sec" ] && selected "${I_ID[i]}"; then
+        [ $printed -eq 1 ] || { printf '\n== %s\n' "$(section_title "$sec")"; printed=1; }
+        run_item $i
+      fi
+      i=$((i + 1))
+    done
   done
-done
-echo
-echo "Free after: $(human "$(free_bytes)")"
+  echo
+  echo "Free after: $(human "$(free_bytes)")"
+}
+
+if [ -n "${LIST_LOG:-}" ]; then
+  report | sed 's/^/log	/'
+else
+  report
+fi

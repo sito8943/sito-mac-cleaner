@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-11-17
+
+### Added
+
+- Next.js builds section: one item per `.next/` next to a `package.json` under
+  `~/Documents` (or `--projects DIR`). (148f0e1)
+- The analysis (dry run) now shows in the Output tab. `disk-clean --list` also
+  prints the `--dry-run` report as `log` lines, so no second scan is needed.
+  (42dd41c)
+
 ## [0.3.0] - 2026-11-14
 
 ### Added
@@ -58,5 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - English and Spanish UI for the window and tray menu.
 - macOS DMG builds and Homebrew cask publishing workflows.
 
+[0.4.0]: https://github.com/sito8943/sito-mac-cleaner/releases/tag/v0.4.0
+[0.3.0]: https://github.com/sito8943/sito-mac-cleaner/releases/tag/v0.3.0
 [0.2.0]: https://github.com/sito8943/sito-mac-cleaner/releases/tag/v0.2.0
 [0.1.0]: https://github.com/sito8943/sito-mac-cleaner/releases/tag/v0.1.0

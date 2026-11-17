@@ -10,6 +10,7 @@ export const SECTIONS: readonly { id: Section; label: () => string }[] = [
   { id: SECTION.PACKAGES, label: () => t("sectionPackages") },
   { id: SECTION.NODE_MODULES, label: () => t("sectionNodeModules") },
   { id: SECTION.RUST_TARGET, label: () => t("sectionRustTarget") },
+  { id: SECTION.NEXT_BUILD, label: () => t("sectionNextBuild") },
   { id: SECTION.DOCKER, label: () => t("sectionDocker") },
   { id: SECTION.VSCODE, label: () => t("sectionVscode") },
   { id: SECTION.BACKUPS, label: () => t("sectionBackups") },

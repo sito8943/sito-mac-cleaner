@@ -49,12 +49,18 @@ export function CleanerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  /** Análisis pedido por el usuario o al arrancar: su dry run pasa a la salida. */
+  const analyzeAndLog = useCallback(async () => {
+    setLog([]);
+    const result = await runScan();
+    if (result) setLog(result.log);
+  }, [runScan]);
+
   const analyze = useCallback(async () => {
     setError(null);
     setFreedBytes(null);
-    setLog([]);
-    await runScan();
-  }, [runScan]);
+    await analyzeAndLog();
+  }, [analyzeAndLog]);
 
   // Arranque: preferencia de bandeja y primer análisis en paralelo. StrictMode
   // ejecuta los efectos dos veces en dev; el ref evita un segundo análisis, que
@@ -71,8 +77,8 @@ export function CleanerProvider({ children }: { children: ReactNode }) {
         setTrayEnabled(false);
       }
     })();
-    runScan();
-  }, [runScan]);
+    analyzeAndLog();
+  }, [analyzeAndLog]);
 
   const items = useMemo(() => scan?.items ?? [], [scan]);
   const groups = useMemo(() => groupBySection(items), [items]);
