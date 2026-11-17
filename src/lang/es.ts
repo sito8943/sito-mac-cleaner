@@ -35,7 +35,8 @@ export const es: Dictionary = {
   freed: (size: string) => `¡Liberados ${size}!`,
   logTitle: "Salida de disk-clean",
   viewOutput: "Ver la salida completa",
-  logEmpty: "Nada todavía. Aquí sale la salida de la limpieza.",
+  logEmpty:
+    "Nada todavía. Aquí sale la salida del análisis (dry run) y de la limpieza.",
   tabMain: "Limpiar",
   tabItems: "Lista",
   tabOutput: "Salida",
@@ -52,6 +53,7 @@ export const es: Dictionary = {
   sectionNodeModules: "node_modules en ~/Documents (pnpm install los recupera)",
   sectionRustTarget:
     "Builds de Tauri / Rust (target/; cargo build los recupera)",
+  sectionNextBuild: "Builds de Next.js (.next/; next build los recupera)",
   sectionDocker: "Docker",
   sectionVscode: "Extensiones viejas de VS Code",
   sectionBackups: "Backups del VPS",

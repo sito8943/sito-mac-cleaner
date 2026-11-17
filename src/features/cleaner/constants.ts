@@ -26,6 +26,7 @@ export const SECTION = {
   PACKAGES: "packages",
   NODE_MODULES: "node-modules",
   RUST_TARGET: "rust-target",
+  NEXT_BUILD: "next-build",
   DOCKER: "docker",
   VSCODE: "vscode",
   BACKUPS: "backups",

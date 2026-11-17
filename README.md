@@ -29,6 +29,7 @@ de los dos, inglés).
 | Gestores de paquetes  | `pnpm store prune` (uno por cada versión de store), `npm`/`yarn`/`composer` cache, `brew cleanup`.       |
 | node_modules          | Cada `node_modules` bajo `~/Documents`, una fila por proyecto. `pnpm install` los recupera.              |
 | Builds de Tauri/Rust  | Cada `target/` junto a un `Cargo.toml` (todos los `src-tauri/target`). `cargo build` los recupera.       |
+| Builds de Next.js     | Cada `.next/` junto a un `package.json` bajo `~/Documents`. `next build` los recupera.                   |
 | Docker                | Imágenes sin usar, caché de build y volúmenes anónimos. Los volúmenes con nombre se conservan.           |
 | VS Code               | Versiones viejas de extensiones; conserva la más nueva.                                                  |
 | Backups del VPS       | `~/Backups/sito-vps/<proyecto>`: conserva los 7 días más recientes según la fecha del nombre de archivo. |
@@ -51,7 +52,7 @@ cli/disk-clean                      # limpia todo
 cli/disk-clean --list               # plan en TSV (lo que usa la app)
 cli/disk-clean --only npm-cache,docker-images
 cli/disk-clean --keep-days 14 --session-days 30
-cli/disk-clean --projects ~/Code       # dónde buscar node_modules y target/
+cli/disk-clean --projects ~/Code       # dónde buscar node_modules, target/ y .next/
 ```
 
 Para tenerlo en el PATH, enlázalo en lugar de copiarlo; así la app y la
