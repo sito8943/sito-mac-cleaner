@@ -3,6 +3,8 @@
   flex-direction: column;
   gap: var(--space-4);
   flex: 1;
+  /* El margen superior de la ventana (AppLayout no lo pone, ver allí). */
+  padding-top: var(--space-5);
 }
 
 .Cleaner.loading {
@@ -112,6 +114,20 @@
   padding: var(--space-3);
   text-align: center;
   font-weight: var(--font-weight-semibold);
+}
+
+/* Pestañas + barra de Items: se quedan arriba al desplazar (el scroll es de
+   .AppLayout). El fondo tapa la lista que pasa por debajo. */
+.Cleaner .sticky-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: calc(-1 * var(--space-2));
+  padding-block: var(--space-2);
+  background: var(--color-background-app);
 }
 
 .Cleaner .toolbar {
