@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faCheck,
+  faCopy,
   faEyeSlash,
   faPowerOff,
   faRotate,
@@ -32,6 +34,7 @@ import { VuMeter } from "./components/VuMeter";
 import {
   CLEANER_TAB,
   CLEANER_TABS_ID,
+  COPIED_FEEDBACK_MS,
   CleanerTab,
   METER_LEVEL,
   PHASE,
@@ -67,6 +70,7 @@ export function Cleaner() {
     selectAll,
     selectNone,
     clean,
+    copyManual,
     enableTray,
     disableTray,
     hideWindow,
@@ -74,6 +78,14 @@ export function Cleaner() {
   } = useCleaner();
   const [armed, setArmed] = useState(false);
   const [tab, setTab] = useState<CleanerTab>(CLEANER_TAB.MAIN);
+  const [copied, setCopied] = useState(false);
+
+  // La confirmación de "copiado" se apaga sola.
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);
+    return () => clearTimeout(timer);
+  }, [copied]);
 
   if (trayEnabled === null) {
     return (
@@ -259,6 +271,22 @@ export function Cleaner() {
                   {t("selectedCount", selected.size, cleanableCount)}
                 </span>
                 <div className="toolbar-actions">
+                  <Tooltip
+                    label={copied ? t("copiedManual") : t("copyManual")}
+                    side={TOOLTIP_SIDE.BOTTOM}
+                    align={TOOLTIP_ALIGN.END}
+                  >
+                    <IconButton
+                      aria-label={t("copyManual")}
+                      icon={
+                        <FontAwesomeIcon icon={copied ? faCheck : faCopy} />
+                      }
+                      size={BUTTON_SIZE.SM}
+                      variant={BUTTON_VARIANT.TEXT}
+                      disabled={busy || selected.size === 0}
+                      onClick={async () => setCopied(await copyManual())}
+                    />
+                  </Tooltip>
                   <Button
                     size={BUTTON_SIZE.SM}
                     variant={BUTTON_VARIANT.TEXT}

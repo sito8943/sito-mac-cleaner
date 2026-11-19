@@ -45,6 +45,12 @@ export const es: Dictionary = {
     `${selected} de ${total} marcados`,
   selectAll: "Marcar todo",
   selectNone: "Desmarcar todo",
+  copyManual: "Copiar lo marcado como comandos de terminal",
+  copiedManual: "Comandos copiados",
+  manualHeader: (count) =>
+    `Sito Mac Cleaner: limpieza manual de ${count} elemento${count === 1 ? "" : "s"}. Revísalo antes de ejecutarlo.`,
+  manualAppBundle:
+    "Contiene una app: la terminal necesita el permiso Gestión de apps (o bórralo desde el Finder).",
   noteAppBundle:
     "Contiene una app: macOS solo deja borrarla con el permiso de Gestión de apps, así que se saltará. Bórrala desde Finder o da el permiso en Ajustes del Sistema > Privacidad y seguridad.",
   sizeUnknown: "El script no puede estimar cuánto libera",

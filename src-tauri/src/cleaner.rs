@@ -55,6 +55,8 @@ pub struct CleanItem {
     pub label: String,
     /// Aviso del script: `None`, o "app-bundle" (contiene un .app y se saltará).
     pub note: Option<String>,
+    /// Líneas de shell para limpiarlo a mano (`rm -rf …` o el comando); vacío en info.
+    pub commands: Vec<String>,
 }
 
 #[derive(Serialize, Clone, PartialEq, Debug)]
@@ -90,6 +92,15 @@ fn parse_list(stdout: &str) -> ScanResult {
             result.log.push(text.to_string());
             continue;
         }
+        // "manual\t<id>\t<línea>": el comando tampoco se trocea; va tras su "item".
+        if let Some(rest) = line.strip_prefix("manual\t") {
+            if let Some((id, command)) = rest.split_once('\t') {
+                if let Some(item) = result.items.iter_mut().rev().find(|item| item.id == id) {
+                    item.commands.push(command.to_string());
+                }
+            }
+            continue;
+        }
         let fields: Vec<&str> = line.split('\t').collect();
         match fields.as_slice() {
             ["free", bytes] => result.free_bytes = bytes.parse().unwrap_or(0),
@@ -109,6 +120,7 @@ fn parse_list(stdout: &str) -> ScanResult {
                         .first()
                         .filter(|note| !note.is_empty())
                         .map(|note| note.to_string()),
+                    commands: Vec::new(),
                 })
             }
             _ => {}
@@ -218,6 +230,24 @@ mod tests {
         let result = parse_list(out);
         assert_eq!(result.items.len(), 0);
         assert_eq!(result.log, vec!["Free before: 1G  (dry run)", "", "  1M\ta\tb"]);
+    }
+
+    #[test]
+    fn parses_manual_commands() {
+        let out = "item\ttrash\ttrash\tcmd\t-1\t~/.Trash\t\n\
+                   manual\ttrash\t(cd ~ && osascript -e 'tell app \"Finder\" to empty trash')\n\
+                   item\tnm\tnode-modules\trm\t42\t~/a/node_modules\t\n\
+                   manual\tnm\trm -rf ~/a/node_modules\n\
+                   manual\tnm\trm -rf ~/b\\ c/node_modules\n";
+        let result = parse_list(out);
+        assert_eq!(
+            result.items[0].commands,
+            vec!["(cd ~ && osascript -e 'tell app \"Finder\" to empty trash')"]
+        );
+        assert_eq!(
+            result.items[1].commands,
+            vec!["rm -rf ~/a/node_modules", "rm -rf ~/b\\ c/node_modules"]
+        );
     }
 
     #[test]

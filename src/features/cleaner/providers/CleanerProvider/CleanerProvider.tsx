@@ -14,6 +14,7 @@ import { SectionGroup } from "@/features/cleaner/types";
 import {
   groupBySection,
   isCleanable,
+  manualScript,
   translateError,
 } from "@/features/cleaner/utils";
 import { CleanerContext } from "./context";
@@ -151,6 +152,19 @@ export function CleanerProvider({ children }: { children: ReactNode }) {
     if (after) setFreedBytes(Math.max(0, after.freeBytes - freeBefore));
   }, [scan, selected, runScan]);
 
+  /** Copia lo marcado como comandos de terminal; `false` si no había nada o falló. */
+  const copyManual = useCallback(async (): Promise<boolean> => {
+    const script = manualScript(groups, selected);
+    if (!script) return false;
+    try {
+      await managerRef.current.copyToClipboard(script);
+      return true;
+    } catch (e) {
+      setError(translateError(String(e)));
+      return false;
+    }
+  }, [groups, selected]);
+
   const changeTray = useCallback(async (enabled: boolean) => {
     setError(null);
     try {
@@ -199,6 +213,7 @@ export function CleanerProvider({ children }: { children: ReactNode }) {
       selectAll,
       selectNone,
       clean,
+      copyManual,
       enableTray,
       disableTray,
       hideWindow,
@@ -222,6 +237,7 @@ export function CleanerProvider({ children }: { children: ReactNode }) {
       selectAll,
       selectNone,
       clean,
+      copyManual,
       enableTray,
       disableTray,
       hideWindow,

@@ -11,6 +11,8 @@ export interface CleanItem {
   label: string;
   /** Aviso del script sobre el elemento (ver ITEM_NOTE); `null` si no hay. */
   note: string | null;
+  /** Líneas de shell para limpiarlo a mano (`rm -rf …` o el comando); vacío en info. */
+  commands: string[];
 }
 
 /** rm = borra rutas, cmd = ejecuta un comando, info = solo se muestra. */
