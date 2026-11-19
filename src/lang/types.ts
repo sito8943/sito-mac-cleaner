@@ -45,6 +45,7 @@ export interface Dictionary {
   manualAppBundle: string;
   noteAppBundle: string;
   sizeUnknown: string;
+  sizeAtMost: string;
   sectionCaches: string;
   sectionPackages: string;
   sectionNodeModules: string;

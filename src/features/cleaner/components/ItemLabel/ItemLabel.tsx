@@ -31,9 +31,17 @@ export function ItemLabel({ item }: ItemLabelProps) {
       ) : null}
       <span
         className="size"
-        title={item.bytes === null ? t("sizeUnknown") : undefined}
+        title={
+          item.bytes !== null
+            ? undefined
+            : item.maxBytes !== null
+              ? t("sizeAtMost")
+              : t("sizeUnknown")
+        }
       >
-        {formatBytes(item.bytes)}
+        {item.bytes === null && item.maxBytes !== null
+          ? `≤ ${formatBytes(item.maxBytes)}`
+          : formatBytes(item.bytes)}
       </span>
     </span>
   );

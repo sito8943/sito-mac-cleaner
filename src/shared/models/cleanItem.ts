@@ -11,6 +11,8 @@ export interface CleanItem {
   label: string;
   /** Aviso del script sobre el elemento (ver ITEM_NOTE); `null` si no hay. */
   note: string | null;
+  /** Tope de lo que puede liberar cuando `bytes` es `null` (p. ej. el store de pnpm antes del prune). */
+  maxBytes: number | null;
   /** Líneas de shell para limpiarlo a mano (`rm -rf …` o el comando); vacío en info. */
   commands: string[];
 }

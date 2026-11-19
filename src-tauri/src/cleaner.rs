@@ -55,6 +55,9 @@ pub struct CleanItem {
     pub label: String,
     /// Aviso del script: `None`, o "app-bundle" (contiene un .app y se saltará).
     pub note: Option<String>,
+    /// Tope de lo que puede liberar cuando `bytes` es `None` (p. ej. el total del
+    /// store antes de `pnpm store prune`); `None` si no hay.
+    pub max_bytes: Option<u64>,
     /// Líneas de shell para limpiarlo a mano (`rm -rf …` o el comando); vacío en info.
     pub commands: Vec<String>,
 }
@@ -120,6 +123,11 @@ fn parse_list(stdout: &str) -> ScanResult {
                         .first()
                         .filter(|note| !note.is_empty())
                         .map(|note| note.to_string()),
+                    // 8.º campo opcional: -1 o ausente = sin tope.
+                    max_bytes: rest
+                        .get(1)
+                        .and_then(|b| b.parse::<i64>().ok())
+                        .and_then(|b| u64::try_from(b).ok()),
                     commands: Vec::new(),
                 })
             }
@@ -257,6 +265,17 @@ mod tests {
         let result = parse_list(out);
         assert_eq!(result.items[0].note.as_deref(), Some("app-bundle"));
         assert_eq!(result.items[1].note, None);
+    }
+
+    #[test]
+    fn parses_max_bytes() {
+        let out = "item\tpnpm-prune\tpackages\tcmd\t-1\tpnpm store prune\t\t2048\n\
+                   item\tnpm-cache\tpackages\tcmd\t42\tnpm cache clean --force\t\t-1\n\
+                   item\told\tpackages\tcmd\t42\told script\t\n";
+        let result = parse_list(out);
+        assert_eq!(result.items[0].max_bytes, Some(2048));
+        assert_eq!(result.items[1].max_bytes, None);
+        assert_eq!(result.items[2].max_bytes, None);
     }
 
     #[test]

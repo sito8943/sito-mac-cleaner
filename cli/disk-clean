@@ -104,8 +104,9 @@ human() {
 #   kind info -> shown only, never cleaned
 # ---------------------------------------------------------------------------------------------
 N=0
-add() { # add ID SECTION KIND BYTES LABEL DATA [NOTE]
-  I_ID[N]="$1"; I_SEC[N]="$2"; I_KIND[N]="$3"; I_BYTES[N]="$4"; I_LABEL[N]="$5"; I_DATA[N]="$6"; I_NOTE[N]="${7:-}"
+add() { # add ID SECTION KIND BYTES LABEL DATA [NOTE] [MAX]
+  # MAX: upper bound when BYTES is unknown (-1), e.g. a pnpm store's total size before prune
+  I_ID[N]="$1"; I_SEC[N]="$2"; I_KIND[N]="$3"; I_BYTES[N]="$4"; I_LABEL[N]="$5"; I_DATA[N]="$6"; I_NOTE[N]="${7:-}"; I_MAX[N]="${8:--1}"
   N=$((N + 1))
 }
 
@@ -198,8 +199,8 @@ if has pnpm; then
     [ -d "$s" ] || continue
     v="${s##*/v}"
     if [ "$s" = "$current_store" ]; then
-      add pnpm-prune packages cmd -1 "pnpm store prune  ($(tilde "$s"), $(human "$(bytes_of "$s")") total)" \
-        "pnpm store prune"
+      add pnpm-prune packages cmd -1 "pnpm store prune  ($(tilde "$s"))" \
+        "pnpm store prune" "" "$(bytes_of "$s")"
       # pnpm 11+ global virtual store; prune leaves it even when nothing uses it
       if [ -d "$s/links" ] &&
          (cd "$HOME" && pnpm ls -g --depth 0 2>&1 | grep -q '^No global packages') &&
@@ -207,8 +208,8 @@ if has pnpm; then
         add_paths pnpm-links packages "$(tilde "$s/links")  (unused global virtual store)" "$s/links"
       fi
     elif [ "$v" = 10 ]; then
-      add pnpm10-prune packages cmd -1 "pnpm@10 store prune  ($(tilde "$s"), $(human "$(bytes_of "$s")") total)" \
-        "pnpm dlx pnpm@10 store prune"
+      add pnpm10-prune packages cmd -1 "pnpm@10 store prune  ($(tilde "$s"))" \
+        "pnpm dlx pnpm@10 store prune" "" "$(bytes_of "$s")"
     else
       add_paths "pnpm-store-v$v" packages "$(tilde "$s")  (old pnpm store)" "$s"
     fi
@@ -360,15 +361,16 @@ manual_lines() {
 }
 
 # --list: first line "free<TAB>bytes", then one line per item:
-#   item<TAB>id<TAB>section<TAB>kind<TAB>bytes<TAB>label<TAB>note     (bytes -1 = unknown;
-#   note: empty, or app-bundle = contains a .app and will be skipped)
+#   item<TAB>id<TAB>section<TAB>kind<TAB>bytes<TAB>label<TAB>note<TAB>max     (bytes -1 = unknown;
+#   note: empty, or app-bundle = contains a .app and will be skipped; max: upper bound of an
+#   unknown size, -1 = none)
 #   each item line is followed by its manual<TAB>id<TAB>shell-line lines (to clean it by hand)
 # then the --dry-run report, one "log<TAB>line" per line (the app shows it as the output).
 if [ "$MODE" = list ]; then
   printf 'free\t%s\n' "$(free_bytes)"
   i=0
   while [ $i -lt $N ]; do
-    printf 'item\t%s\t%s\t%s\t%s\t%s\t%s\n' "${I_ID[i]}" "${I_SEC[i]}" "${I_KIND[i]}" "${I_BYTES[i]}" "${I_LABEL[i]}" "${I_NOTE[i]}"
+    printf 'item\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${I_ID[i]}" "${I_SEC[i]}" "${I_KIND[i]}" "${I_BYTES[i]}" "${I_LABEL[i]}" "${I_NOTE[i]}" "${I_MAX[i]}"
     manual_lines $i | awk -v id="${I_ID[i]}" '{ printf "manual\t%s\t%s\n", id, $0 }'
     i=$((i + 1))
   done
