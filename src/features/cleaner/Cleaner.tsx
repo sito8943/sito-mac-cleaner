@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faCheck,
+  faCopy,
   faEyeSlash,
   faPowerOff,
   faRotate,
@@ -32,6 +34,7 @@ import { VuMeter } from "./components/VuMeter";
 import {
   CLEANER_TAB,
   CLEANER_TABS_ID,
+  COPIED_FEEDBACK_MS,
   CleanerTab,
   METER_LEVEL,
   PHASE,
@@ -67,6 +70,7 @@ export function Cleaner() {
     selectAll,
     selectNone,
     clean,
+    copyManual,
     enableTray,
     disableTray,
     hideWindow,
@@ -74,6 +78,14 @@ export function Cleaner() {
   } = useCleaner();
   const [armed, setArmed] = useState(false);
   const [tab, setTab] = useState<CleanerTab>(CLEANER_TAB.MAIN);
+  const [copied, setCopied] = useState(false);
+
+  // La confirmación de "copiado" se apaga sola.
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);
+    return () => clearTimeout(timer);
+  }, [copied]);
 
   if (trayEnabled === null) {
     return (
@@ -191,16 +203,58 @@ export function Cleaner() {
 
       {alert ? <AlertBanner /> : null}
 
-      <Tabs
-        tabs={tabs}
-        value={tab}
-        onChange={(id) => {
-          // El botón se desmonta al cambiar de pestaña y la tapa vuelve cerrada.
-          setArmed(false);
-          setTab(id);
-        }}
-        idPrefix={CLEANER_TABS_ID}
-      />
+      {/* Pestañas y, en Items, su barra: fijas arriba al desplazar la lista. */}
+      <div className="sticky-bar">
+        <Tabs
+          tabs={tabs}
+          value={tab}
+          onChange={(id) => {
+            // El botón se desmonta al cambiar de pestaña y la tapa vuelve cerrada.
+            setArmed(false);
+            setTab(id);
+          }}
+          idPrefix={CLEANER_TABS_ID}
+        />
+        {tab === CLEANER_TAB.ITEMS && scan ? (
+          <div className="toolbar">
+            <span className="count">
+              {t("selectedCount", selected.size, cleanableCount)}
+            </span>
+            <div className="toolbar-actions">
+              <Tooltip
+                label={copied ? t("copiedManual") : t("copyManual")}
+                side={TOOLTIP_SIDE.BOTTOM}
+                align={TOOLTIP_ALIGN.END}
+              >
+                <IconButton
+                  aria-label={t("copyManual")}
+                  icon={<FontAwesomeIcon icon={copied ? faCheck : faCopy} />}
+                  size={BUTTON_SIZE.SM}
+                  variant={BUTTON_VARIANT.TEXT}
+                  disabled={busy || selected.size === 0}
+                  onClick={async () => setCopied(await copyManual())}
+                />
+              </Tooltip>
+              <Button
+                size={BUTTON_SIZE.SM}
+                variant={BUTTON_VARIANT.TEXT}
+                disabled={busy}
+                onClick={selectAll}
+              >
+                {t("selectAll")}
+              </Button>
+              <Button
+                size={BUTTON_SIZE.SM}
+                variant={BUTTON_VARIANT.TEXT}
+                disabled={busy}
+                onClick={selectNone}
+              >
+                {t("selectNone")}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </div>
 
       {tab === CLEANER_TAB.MAIN ? (
         <div className="panel main" {...panelProps(CLEANER_TAB.MAIN)}>
@@ -254,29 +308,6 @@ export function Cleaner() {
         <div className="panel items" {...panelProps(CLEANER_TAB.ITEMS)}>
           {scan ? (
             <>
-              <div className="toolbar">
-                <span className="count">
-                  {t("selectedCount", selected.size, cleanableCount)}
-                </span>
-                <div className="toolbar-actions">
-                  <Button
-                    size={BUTTON_SIZE.SM}
-                    variant={BUTTON_VARIANT.TEXT}
-                    disabled={busy}
-                    onClick={selectAll}
-                  >
-                    {t("selectAll")}
-                  </Button>
-                  <Button
-                    size={BUTTON_SIZE.SM}
-                    variant={BUTTON_VARIANT.TEXT}
-                    disabled={busy}
-                    onClick={selectNone}
-                  >
-                    {t("selectNone")}
-                  </Button>
-                </div>
-              </div>
               {groups.length ? (
                 <ItemList
                   groups={groups}

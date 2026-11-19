@@ -52,6 +52,23 @@ fi
 export PATH
 
 has() { command -v "$1" >/dev/null 2>&1; }
+# with_timeout SECS CMD...: CMD's exit status, or 124 if it took longer than SECS (it is killed).
+# macOS has no timeout(1). Needed for docker: with a wedged daemon `docker info` never returns
+# and the whole scan hangs on it.
+with_timeout() {
+  local secs=$1 pid watcher rc
+  shift
+  "$@" &
+  pid=$!
+  ( sleep "$secs" & s=$!; trap 'kill $s 2>/dev/null; exit 0' TERM; wait $s; kill $pid 2>/dev/null ) &
+  watcher=$!
+  wait $pid
+  rc=$?
+  kill $watcher 2>/dev/null
+  wait $watcher 2>/dev/null
+  [ $rc -gt 128 ] && rc=124
+  return $rc
+}
 free_bytes() { df -k / | awk 'NR==2 {printf "%.0f\n", $4 * 1024}'; }
 # no ${1/#$HOME/~}: bash 5 tilde-expands the replacement back to $HOME
 tilde() { case "$1" in "$HOME"|"$HOME"/*) printf '~%s' "${1#"$HOME"}" ;; *) printf '%s' "$1" ;; esac; }
@@ -87,8 +104,9 @@ human() {
 #   kind info -> shown only, never cleaned
 # ---------------------------------------------------------------------------------------------
 N=0
-add() { # add ID SECTION KIND BYTES LABEL DATA [NOTE]
-  I_ID[N]="$1"; I_SEC[N]="$2"; I_KIND[N]="$3"; I_BYTES[N]="$4"; I_LABEL[N]="$5"; I_DATA[N]="$6"; I_NOTE[N]="${7:-}"
+add() { # add ID SECTION KIND BYTES LABEL DATA [NOTE] [MAX]
+  # MAX: upper bound when BYTES is unknown (-1), e.g. a pnpm store's total size before prune
+  I_ID[N]="$1"; I_SEC[N]="$2"; I_KIND[N]="$3"; I_BYTES[N]="$4"; I_LABEL[N]="$5"; I_DATA[N]="$6"; I_NOTE[N]="${7:-}"; I_MAX[N]="${8:--1}"
   N=$((N + 1))
 }
 
@@ -181,8 +199,8 @@ if has pnpm; then
     [ -d "$s" ] || continue
     v="${s##*/v}"
     if [ "$s" = "$current_store" ]; then
-      add pnpm-prune packages cmd -1 "pnpm store prune  ($(tilde "$s"), $(human "$(bytes_of "$s")") total)" \
-        "pnpm store prune"
+      add pnpm-prune packages cmd -1 "pnpm store prune  ($(tilde "$s"))" \
+        "pnpm store prune" "" "$(bytes_of "$s")"
       # pnpm 11+ global virtual store; prune leaves it even when nothing uses it
       if [ -d "$s/links" ] &&
          (cd "$HOME" && pnpm ls -g --depth 0 2>&1 | grep -q '^No global packages') &&
@@ -190,8 +208,8 @@ if has pnpm; then
         add_paths pnpm-links packages "$(tilde "$s/links")  (unused global virtual store)" "$s/links"
       fi
     elif [ "$v" = 10 ]; then
-      add pnpm10-prune packages cmd -1 "pnpm@10 store prune  ($(tilde "$s"), $(human "$(bytes_of "$s")") total)" \
-        "pnpm dlx pnpm@10 store prune"
+      add pnpm10-prune packages cmd -1 "pnpm@10 store prune  ($(tilde "$s"))" \
+        "pnpm dlx pnpm@10 store prune" "" "$(bytes_of "$s")"
     else
       add_paths "pnpm-store-v$v" packages "$(tilde "$s")  (old pnpm store)" "$s"
     fi
@@ -231,13 +249,18 @@ EOF
 fi
 
 # --- docker -----------------------------------------------------------------------------------
-if has docker && docker info >/dev/null 2>&1; then
-  docker_df="$(docker system df --format '{{.Type}}|{{.Reclaimable}}' 2>/dev/null)"
+docker_rc=1
+has docker && { with_timeout 10 docker info >/dev/null 2>&1; docker_rc=$?; }
+if [ $docker_rc -eq 0 ]; then
+  docker_df="$(with_timeout 30 docker system df --format '{{.Type}}|{{.Reclaimable}}' 2>/dev/null)"
   reclaimable() { printf '%s\n' "$docker_df" | awk -F'|' -v t="$1" '$1 == t {split($2, a, " "); print a[1]}'; }
   add docker-images docker cmd "$(to_bytes "$(reclaimable Images)" 1000)" "docker image prune -af" "docker image prune -af"
   add docker-build docker cmd "$(to_bytes "$(reclaimable 'Build Cache')" 1000)" "docker builder prune -af" "docker builder prune -af"
   # docker's "reclaimable" counts unused named volumes too, which prune keeps: size unknown
   add docker-volumes docker cmd -1 "docker volume prune -f" "docker volume prune -f"
+elif [ $docker_rc -eq 124 ]; then
+  # running but hung (seen after the disk filled up): restarting Docker Desktop fixes it
+  add docker-off docker info -1 "docker not responding (restart Docker Desktop), skipped" ""
 else
   add docker-off docker info -1 "docker not running, skipped" ""
 fi
@@ -324,15 +347,31 @@ done
 # Output
 # ---------------------------------------------------------------------------------------------
 
+# shell lines that clean item $1 by hand (the app's "copy commands"): rm -rf per path, or the
+# command itself (cmd items run from $HOME, so a cd ~ first)
+shell_path() { case "$1" in "$HOME"/*) printf '~/%q' "${1#"$HOME"/}" ;; *) printf '%q' "$1" ;; esac; }
+manual_lines() {
+  local i=$1 p
+  case "${I_KIND[i]}" in
+    rm) printf '%s\n' "${I_DATA[i]}" | while IFS= read -r p; do
+          [ -n "$p" ] && printf 'rm -rf %s\n' "$(shell_path "$p")"
+        done ;;
+    cmd) printf '(cd ~ && %s)\n' "${I_DATA[i]}" ;;
+  esac
+}
+
 # --list: first line "free<TAB>bytes", then one line per item:
-#   item<TAB>id<TAB>section<TAB>kind<TAB>bytes<TAB>label<TAB>note     (bytes -1 = unknown;
-#   note: empty, or app-bundle = contains a .app and will be skipped)
+#   item<TAB>id<TAB>section<TAB>kind<TAB>bytes<TAB>label<TAB>note<TAB>max     (bytes -1 = unknown;
+#   note: empty, or app-bundle = contains a .app and will be skipped; max: upper bound of an
+#   unknown size, -1 = none)
+#   each item line is followed by its manual<TAB>id<TAB>shell-line lines (to clean it by hand)
 # then the --dry-run report, one "log<TAB>line" per line (the app shows it as the output).
 if [ "$MODE" = list ]; then
   printf 'free\t%s\n' "$(free_bytes)"
   i=0
   while [ $i -lt $N ]; do
-    printf 'item\t%s\t%s\t%s\t%s\t%s\t%s\n' "${I_ID[i]}" "${I_SEC[i]}" "${I_KIND[i]}" "${I_BYTES[i]}" "${I_LABEL[i]}" "${I_NOTE[i]}"
+    printf 'item\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${I_ID[i]}" "${I_SEC[i]}" "${I_KIND[i]}" "${I_BYTES[i]}" "${I_LABEL[i]}" "${I_NOTE[i]}" "${I_MAX[i]}"
+    manual_lines $i | awk -v id="${I_ID[i]}" '{ printf "manual\t%s\t%s\n", id, $0 }'
     i=$((i + 1))
   done
   MODE=dry

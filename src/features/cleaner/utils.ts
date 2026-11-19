@@ -5,6 +5,7 @@ import {
   BYTES_PER_MB,
   ERROR_CODE,
   ITEM_KIND,
+  ITEM_NOTE,
   METER_DANGER_GB,
   METER_LEVEL,
   METER_WARN_GB,
@@ -74,4 +75,57 @@ export function translateError(raw: string): string {
     default:
       return `${t("errorGeneric")} ${raw}`;
   }
+}
+
+const RM_PREFIX = "rm -rf ";
+
+/**
+ * Comandos de un elemento: varios `rm -rf` se juntan en uno, una ruta por
+ * línea, para que un elemento con cientos de ficheros siga siendo una entrada.
+ */
+function itemCommands(item: CleanItem): string[] {
+  const { commands } = item;
+  if (
+    commands.length < 2 ||
+    !commands.every((command) => command.startsWith(RM_PREFIX))
+  ) {
+    return commands;
+  }
+  const paths = commands.map((command) => command.slice(RM_PREFIX.length));
+  return [`${RM_PREFIX}\\\n  ${paths.join(" \\\n  ")}`];
+}
+
+/**
+ * Lo marcado como script de shell para limpiarlo a mano: una cabecera y, por
+ * sección, su título y cada elemento con su nombre y sus comandos. `null` si
+ * no hay nada.
+ */
+export function manualScript(
+  groups: readonly SectionGroup[],
+  selected: ReadonlySet<string>,
+): string | null {
+  const blocks: string[] = [];
+  let count = 0;
+  for (const group of groups) {
+    const items = group.items.filter(
+      (item) => selected.has(item.id) && item.commands.length > 0,
+    );
+    if (!items.length) continue;
+    const lines = [`# == ${group.label}`];
+    for (const item of items) {
+      const commands = itemCommands(item);
+      // Un `cmd` suele llamarse como su comando: el título sobraría.
+      if (!commands.some((command) => command.includes(item.label))) {
+        lines.push(`# ${item.label}`);
+      }
+      if (item.note === ITEM_NOTE.APP_BUNDLE) {
+        lines.push(`# ${t("manualAppBundle")}`);
+      }
+      lines.push(...commands);
+    }
+    blocks.push(lines.join("\n"));
+    count += items.length;
+  }
+  if (!count) return null;
+  return [`# ${t("manualHeader", count)}`, ...blocks].join("\n\n") + "\n";
 }

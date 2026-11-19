@@ -15,6 +15,9 @@ export const ITEM_KIND = {
 } as const satisfies Record<string, CleanItemKind>;
 
 // Avisos que `disk-clean --list` añade a un elemento (7.º campo).
+/** Tiempo que el botón de copiar muestra la confirmación. */
+export const COPIED_FEEDBACK_MS = 1500;
+
 export const ITEM_NOTE = {
   /** Contiene un .app: macOS exige el permiso de Gestión de apps y se salta. */
   APP_BUNDLE: "app-bundle",

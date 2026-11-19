@@ -4,6 +4,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-11-19
+
+### Added
+
+- Items tab: copy button that puts the ticked items on the clipboard as
+  terminal commands, grouped by section with one entry per item. Useful for
+  items the app can't delete itself (those holding an app). `disk-clean --list`
+  now prints each item's `manual` shell lines. (b778df4)
+- `pnpm store prune` items show the store's total as an upper bound
+  (`≤ 2.0 GB`) instead of `?`. The meter still ignores it. (be97361)
+
+### Changed
+
+- Tabs and the Items toolbar stay fixed at the top while scrolling the list.
+  (c84dceb)
+
+### Fixed
+
+- The analysis no longer hangs forever on an unresponsive Docker: `docker info`
+  times out after 10 s and Docker shows as "not responding". (d691d82)
+
 ## [0.4.0] - 2026-11-17
 
 ### Added
@@ -68,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - English and Spanish UI for the window and tray menu.
 - macOS DMG builds and Homebrew cask publishing workflows.
 
+[0.5.0]: https://github.com/sito8943/sito-mac-cleaner/releases/tag/v0.5.0
 [0.4.0]: https://github.com/sito8943/sito-mac-cleaner/releases/tag/v0.4.0
 [0.3.0]: https://github.com/sito8943/sito-mac-cleaner/releases/tag/v0.3.0
 [0.2.0]: https://github.com/sito8943/sito-mac-cleaner/releases/tag/v0.2.0

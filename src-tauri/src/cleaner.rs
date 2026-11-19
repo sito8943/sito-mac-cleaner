@@ -55,6 +55,11 @@ pub struct CleanItem {
     pub label: String,
     /// Aviso del script: `None`, o "app-bundle" (contiene un .app y se saltará).
     pub note: Option<String>,
+    /// Tope de lo que puede liberar cuando `bytes` es `None` (p. ej. el total del
+    /// store antes de `pnpm store prune`); `None` si no hay.
+    pub max_bytes: Option<u64>,
+    /// Líneas de shell para limpiarlo a mano (`rm -rf …` o el comando); vacío en info.
+    pub commands: Vec<String>,
 }
 
 #[derive(Serialize, Clone, PartialEq, Debug)]
@@ -90,6 +95,15 @@ fn parse_list(stdout: &str) -> ScanResult {
             result.log.push(text.to_string());
             continue;
         }
+        // "manual\t<id>\t<línea>": el comando tampoco se trocea; va tras su "item".
+        if let Some(rest) = line.strip_prefix("manual\t") {
+            if let Some((id, command)) = rest.split_once('\t') {
+                if let Some(item) = result.items.iter_mut().rev().find(|item| item.id == id) {
+                    item.commands.push(command.to_string());
+                }
+            }
+            continue;
+        }
         let fields: Vec<&str> = line.split('\t').collect();
         match fields.as_slice() {
             ["free", bytes] => result.free_bytes = bytes.parse().unwrap_or(0),
@@ -109,6 +123,12 @@ fn parse_list(stdout: &str) -> ScanResult {
                         .first()
                         .filter(|note| !note.is_empty())
                         .map(|note| note.to_string()),
+                    // 8.º campo opcional: -1 o ausente = sin tope.
+                    max_bytes: rest
+                        .get(1)
+                        .and_then(|b| b.parse::<i64>().ok())
+                        .and_then(|b| u64::try_from(b).ok()),
+                    commands: Vec::new(),
                 })
             }
             _ => {}
@@ -221,12 +241,41 @@ mod tests {
     }
 
     #[test]
+    fn parses_manual_commands() {
+        let out = "item\ttrash\ttrash\tcmd\t-1\t~/.Trash\t\n\
+                   manual\ttrash\t(cd ~ && osascript -e 'tell app \"Finder\" to empty trash')\n\
+                   item\tnm\tnode-modules\trm\t42\t~/a/node_modules\t\n\
+                   manual\tnm\trm -rf ~/a/node_modules\n\
+                   manual\tnm\trm -rf ~/b\\ c/node_modules\n";
+        let result = parse_list(out);
+        assert_eq!(
+            result.items[0].commands,
+            vec!["(cd ~ && osascript -e 'tell app \"Finder\" to empty trash')"]
+        );
+        assert_eq!(
+            result.items[1].commands,
+            vec!["rm -rf ~/a/node_modules", "rm -rf ~/b\\ c/node_modules"]
+        );
+    }
+
+    #[test]
     fn parses_item_notes() {
         let out = "item\tLibrary_Caches_dotslash\tcaches\trm\t42\t~/Library/Caches/dotslash\tapp-bundle\n\
                    item\tnpm-cache\tpackages\tcmd\t42\tnpm cache clean --force\t\n";
         let result = parse_list(out);
         assert_eq!(result.items[0].note.as_deref(), Some("app-bundle"));
         assert_eq!(result.items[1].note, None);
+    }
+
+    #[test]
+    fn parses_max_bytes() {
+        let out = "item\tpnpm-prune\tpackages\tcmd\t-1\tpnpm store prune\t\t2048\n\
+                   item\tnpm-cache\tpackages\tcmd\t42\tnpm cache clean --force\t\t-1\n\
+                   item\told\tpackages\tcmd\t42\told script\t\n";
+        let result = parse_list(out);
+        assert_eq!(result.items[0].max_bytes, Some(2048));
+        assert_eq!(result.items[1].max_bytes, None);
+        assert_eq!(result.items[2].max_bytes, None);
     }
 
     #[test]

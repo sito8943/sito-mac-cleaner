@@ -26,6 +26,8 @@ export interface CleanerContextValue {
   selectAll: () => void;
   selectNone: () => void;
   clean: () => Promise<void>;
+  /** Copia lo marcado como comandos de terminal; `false` si no había nada o falló. */
+  copyManual: () => Promise<boolean>;
   enableTray: () => Promise<void>;
   disableTray: () => Promise<void>;
   hideWindow: () => Promise<void>;

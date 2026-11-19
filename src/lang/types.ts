@@ -39,8 +39,13 @@ export interface Dictionary {
   selectedCount: (selected: number, total: number) => string;
   selectAll: string;
   selectNone: string;
+  copyManual: string;
+  copiedManual: string;
+  manualHeader: (count: number) => string;
+  manualAppBundle: string;
   noteAppBundle: string;
   sizeUnknown: string;
+  sizeAtMost: string;
   sectionCaches: string;
   sectionPackages: string;
   sectionNodeModules: string;

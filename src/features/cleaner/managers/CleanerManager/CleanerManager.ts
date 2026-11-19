@@ -31,6 +31,11 @@ export class CleanerManager {
     }
   }
 
+  /** Deja `text` en el portapapeles del sistema. */
+  copyToClipboard(text: string): Promise<void> {
+    return navigator.clipboard.writeText(text);
+  }
+
   hideWindow(): Promise<void> {
     return api.hideWindow();
   }

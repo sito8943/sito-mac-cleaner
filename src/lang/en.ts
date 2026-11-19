@@ -45,9 +45,17 @@ export const en: Dictionary = {
     `${selected} of ${total} ticked`,
   selectAll: "Tick all",
   selectNone: "Untick all",
+  copyManual: "Copy the ticked items as terminal commands",
+  copiedManual: "Commands copied",
+  manualHeader: (count) =>
+    `Sito Mac Cleaner: manual cleanup of ${count} item${count === 1 ? "" : "s"}. Review before running.`,
+  manualAppBundle:
+    "Contains an app: needs App Management permission for the terminal (or delete it from Finder).",
   noteAppBundle:
     "Contains an app: macOS only lets it be deleted with the App Management permission, so it will be skipped. Remove it from Finder or grant the permission in System Settings > Privacy & Security.",
   sizeUnknown: "The script can't estimate how much this frees",
+  sizeAtMost:
+    "Total size of the store: prune only frees what no project uses, so it frees this much at most",
   sectionCaches: "App caches",
   sectionPackages: "Package managers",
   sectionNodeModules:

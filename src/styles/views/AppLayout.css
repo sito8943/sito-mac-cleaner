@@ -2,7 +2,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-5);
+  /* Sin padding arriba: WebKit pega los `position: sticky; top: 0` bajo el
+     padding del contenedor que hace scroll y la lista asomaría por encima.
+     Ese margen lo pone el contenido (ver .Cleaner). */
+  padding: var(--space-0) var(--space-5) var(--space-5);
   height: 100%;
   overflow-y: auto;
 }
