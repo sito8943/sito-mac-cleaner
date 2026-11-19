@@ -52,6 +52,23 @@ fi
 export PATH
 
 has() { command -v "$1" >/dev/null 2>&1; }
+# with_timeout SECS CMD...: CMD's exit status, or 124 if it took longer than SECS (it is killed).
+# macOS has no timeout(1). Needed for docker: with a wedged daemon `docker info` never returns
+# and the whole scan hangs on it.
+with_timeout() {
+  local secs=$1 pid watcher rc
+  shift
+  "$@" &
+  pid=$!
+  ( sleep "$secs" & s=$!; trap 'kill $s 2>/dev/null; exit 0' TERM; wait $s; kill $pid 2>/dev/null ) &
+  watcher=$!
+  wait $pid
+  rc=$?
+  kill $watcher 2>/dev/null
+  wait $watcher 2>/dev/null
+  [ $rc -gt 128 ] && rc=124
+  return $rc
+}
 free_bytes() { df -k / | awk 'NR==2 {printf "%.0f\n", $4 * 1024}'; }
 # no ${1/#$HOME/~}: bash 5 tilde-expands the replacement back to $HOME
 tilde() { case "$1" in "$HOME"|"$HOME"/*) printf '~%s' "${1#"$HOME"}" ;; *) printf '%s' "$1" ;; esac; }
@@ -231,13 +248,18 @@ EOF
 fi
 
 # --- docker -----------------------------------------------------------------------------------
-if has docker && docker info >/dev/null 2>&1; then
-  docker_df="$(docker system df --format '{{.Type}}|{{.Reclaimable}}' 2>/dev/null)"
+docker_rc=1
+has docker && { with_timeout 10 docker info >/dev/null 2>&1; docker_rc=$?; }
+if [ $docker_rc -eq 0 ]; then
+  docker_df="$(with_timeout 30 docker system df --format '{{.Type}}|{{.Reclaimable}}' 2>/dev/null)"
   reclaimable() { printf '%s\n' "$docker_df" | awk -F'|' -v t="$1" '$1 == t {split($2, a, " "); print a[1]}'; }
   add docker-images docker cmd "$(to_bytes "$(reclaimable Images)" 1000)" "docker image prune -af" "docker image prune -af"
   add docker-build docker cmd "$(to_bytes "$(reclaimable 'Build Cache')" 1000)" "docker builder prune -af" "docker builder prune -af"
   # docker's "reclaimable" counts unused named volumes too, which prune keeps: size unknown
   add docker-volumes docker cmd -1 "docker volume prune -f" "docker volume prune -f"
+elif [ $docker_rc -eq 124 ]; then
+  # running but hung (seen after the disk filled up): restarting Docker Desktop fixes it
+  add docker-off docker info -1 "docker not responding (restart Docker Desktop), skipped" ""
 else
   add docker-off docker info -1 "docker not running, skipped" ""
 fi
