@@ -9,7 +9,7 @@ import {
 
 import { CleanItem, ScanResult } from "@/shared/models";
 import { CleanerManager } from "@/features/cleaner/managers/CleanerManager";
-import { PHASE, Phase } from "@/features/cleaner/constants";
+import { PHASE, Phase, SECTION } from "@/features/cleaner/constants";
 import { SectionGroup } from "@/features/cleaner/types";
 import {
   groupBySection,
@@ -101,6 +101,15 @@ export function CleanerProvider({ children }: { children: ReactNode }) {
       cleanableCount: cleanable,
     };
   }, [items, selected]);
+
+  // Swap y temporales: solo los libera un reinicio (sección "reboot", solo info).
+  const rebootBytes = useMemo(
+    () =>
+      items
+        .filter((item) => item.section === SECTION.REBOOT)
+        .reduce((sum, item) => sum + (item.bytes ?? 0), 0),
+    [items],
+  );
 
   const setMany = useCallback((ids: string[], checked: boolean) => {
     setSelected((previous) => {
@@ -204,6 +213,7 @@ export function CleanerProvider({ children }: { children: ReactNode }) {
       selectedBytes,
       selectedUnknown,
       cleanableCount,
+      rebootBytes,
       log,
       freedBytes,
       error,
@@ -228,6 +238,7 @@ export function CleanerProvider({ children }: { children: ReactNode }) {
       selectedBytes,
       selectedUnknown,
       cleanableCount,
+      rebootBytes,
       log,
       freedBytes,
       error,

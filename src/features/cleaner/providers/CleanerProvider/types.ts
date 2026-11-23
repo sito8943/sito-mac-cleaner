@@ -15,6 +15,8 @@ export interface CleanerContextValue {
   /** Marcados cuyo tamaño el script no puede estimar (p. ej. `pnpm store prune`). */
   selectedUnknown: number;
   cleanableCount: number;
+  /** Lo que ocupan swap y temporales: solo se libera reiniciando el Mac. */
+  rebootBytes: number;
   /** Salida de disk-clean: el dry run del último análisis o la última limpieza. */
   log: string[];
   /** Espacio que ganó el disco en la última limpieza. */

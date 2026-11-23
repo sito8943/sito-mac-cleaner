@@ -32,12 +32,14 @@ import { ItemList } from "./components/ItemList";
 import { TrayConsent } from "./components/TrayConsent";
 import { VuMeter } from "./components/VuMeter";
 import {
+  BYTES_PER_GB,
   CLEANER_TAB,
   CLEANER_TABS_ID,
   COPIED_FEEDBACK_MS,
   CleanerTab,
   METER_LEVEL,
   PHASE,
+  REBOOT_NOTICE_GB,
 } from "./constants";
 import { useCleaner } from "./providers/CleanerProvider";
 import { CLEANER_TABS } from "./tabs";
@@ -61,6 +63,7 @@ export function Cleaner() {
     selectedBytes,
     selectedUnknown,
     cleanableCount,
+    rebootBytes,
     log,
     freedBytes,
     error,
@@ -295,6 +298,12 @@ export function Cleaner() {
               )}
             </div>
           </section>
+
+          {!busy && rebootBytes >= REBOOT_NOTICE_GB * BYTES_PER_GB ? (
+            <aside className="reboot-notice" role="status">
+              {t("rebootNotice", formatBytes(rebootBytes))}
+            </aside>
+          ) : null}
 
           {freedBytes !== null ? (
             <aside className="freed">

@@ -36,6 +36,7 @@ export const SECTION = {
   SESSIONS: "sessions",
   TRASH: "trash",
   CHAT: "chat",
+  REBOOT: "reboot",
 } as const;
 
 export type Section = (typeof SECTION)[keyof typeof SECTION];
@@ -63,6 +64,9 @@ export const BYTES_PER_MB = 1024 ** 2;
 // Medidor: verde hasta 10 GB liberables, amarillo hasta 30, rojo desde 30.
 export const METER_WARN_GB = 10;
 export const METER_DANGER_GB = 30;
+
+// Aviso de "reinicia el Mac" en Principal desde 1 GB que solo libera un reinicio.
+export const REBOOT_NOTICE_GB = 1;
 
 export const CLEANER_TAB = {
   MAIN: "main",
