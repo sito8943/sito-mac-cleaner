@@ -107,6 +107,15 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.Cleaner .reboot-notice {
+  border-radius: var(--radius-lg);
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+  padding: var(--space-3);
+  text-align: center;
+  font-size: var(--font-size-sm);
+}
+
 .Cleaner .freed {
   border-radius: var(--radius-lg);
   background: var(--color-success-surface);

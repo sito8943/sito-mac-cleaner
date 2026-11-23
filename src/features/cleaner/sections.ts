@@ -17,4 +17,5 @@ export const SECTIONS: readonly { id: Section; label: () => string }[] = [
   { id: SECTION.SESSIONS, label: () => t("sectionSessions") },
   { id: SECTION.TRASH, label: () => t("sectionTrash") },
   { id: SECTION.CHAT, label: () => t("sectionChat") },
+  { id: SECTION.REBOOT, label: () => t("sectionReboot") },
 ];

@@ -33,6 +33,8 @@ export const es: Dictionary = {
   cleanNow: "Limpiar lo marcado",
   liftCover: "Levantar la tapa de seguridad",
   freed: (size: string) => `¡Liberados ${size}!`,
+  rebootNotice: (size: string) =>
+    `${size} ocupados por swap y temporales que solo se liberan al reiniciar. Reinicia el Mac para recuperarlos.`,
   logTitle: "Salida de disk-clean",
   viewOutput: "Ver la salida completa",
   logEmpty:
@@ -68,6 +70,7 @@ export const es: Dictionary = {
   sectionSessions: "Sesiones de Claude Code y Codex",
   sectionTrash: "Papelera (se vacía con Finder)",
   sectionChat: "Apps de chat (solo tamaño; se limpian desde la app)",
+  sectionReboot: "Solo se libera reiniciando el Mac (swap y temporales)",
   dismiss: "Cerrar",
   errorScriptNotFound: "No encuentro disk-clean dentro de la app.",
   errorScriptFailed: "disk-clean falló:",

@@ -161,9 +161,10 @@ section_title() {
     sessions) echo "Claude Code + Codex sessions (older than $SESSION_DAYS days)" ;;
     trash) echo "Trash" ;;
     chat) echo "Chat apps (size only, never deleted; clear media from the app)" ;;
+    reboot) echo "Freed only by restarting the Mac (size only, never deleted)" ;;
   esac
 }
-SECTIONS="caches packages node-modules rust-target next-build docker vscode backups sessions trash chat"
+SECTIONS="caches packages node-modules rust-target next-build docker vscode backups sessions trash chat reboot"
 
 # --- caches -----------------------------------------------------------------------------------
 C="$HOME/Library/Caches"
@@ -342,6 +343,22 @@ for app in "WhatsApp:group.net.whatsapp.WhatsApp.shared" "Telegram:6N38VWS5BX.ru
   d="$G/${app#*:}"
   [ -d "$d" ] && add "chat-${app%%:*}" chat info "$(bytes_of "$d")" "${app%%:*}" ""
 done
+
+# --- freed on restart (info only) -------------------------------------------------------------
+# macOS only gives this space back on reboot: swap files (/System/Volumes/VM) are dropped at
+# boot, /private/tmp and the per-user $TMPDIR are emptied at boot. Deleting them by hand while
+# running can break apps (swap is root-owned anyway), so they are shown, never cleaned.
+# vm.swapusage: "total = 5120.00M  used = 3980.69M  free = …": total = size of the swap files.
+swap_total="$(sysctl -n vm.swapusage 2>/dev/null | sed -n 's/.*total = \([0-9.]*[KMGT]\).*/\1/p')"
+[ -n "$swap_total" ] && add reboot-swap reboot info "$(to_bytes "$swap_total" 1024)" \
+  "swap files (/System/Volumes/VM)" ""
+tmp_bytes="$(bytes_of /private/tmp)"
+[ "$tmp_bytes" -gt 0 ] && add reboot-tmp reboot info "$tmp_bytes" "/private/tmp" ""
+if [ -n "${TMPDIR:-}" ] && [ -d "$TMPDIR" ]; then
+  user_tmp="${TMPDIR%/}"
+  user_tmp_bytes="$(bytes_of "$user_tmp")"
+  [ "$user_tmp_bytes" -gt 0 ] && add reboot-user-tmp reboot info "$user_tmp_bytes" "$user_tmp  (\$TMPDIR)" ""
+fi
 
 # ---------------------------------------------------------------------------------------------
 # Output

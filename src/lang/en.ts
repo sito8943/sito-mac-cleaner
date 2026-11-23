@@ -33,6 +33,8 @@ export const en: Dictionary = {
   cleanNow: "Clean the ticked items",
   liftCover: "Lift the safety cover",
   freed: (size: string) => `${size} freed!`,
+  rebootNotice: (size: string) =>
+    `${size} is taken by swap and temporary files that only a restart frees. Restart the Mac to get it back.`,
   logTitle: "disk-clean output",
   viewOutput: "See the full output",
   logEmpty:
@@ -69,6 +71,7 @@ export const en: Dictionary = {
   sectionSessions: "Claude Code and Codex sessions",
   sectionTrash: "Trash (emptied through Finder)",
   sectionChat: "Chat apps (size only; clean them from the app)",
+  sectionReboot: "Freed only by restarting the Mac (swap and temporary files)",
   dismiss: "Close",
   errorScriptNotFound: "Can't find disk-clean inside the app.",
   errorScriptFailed: "disk-clean failed:",

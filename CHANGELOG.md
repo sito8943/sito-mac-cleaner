@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-11-23
+
+### Added
+
+- Reports space that only a restart frees: swap files, `/private/tmp` and
+  `$TMPDIR` show up in a new info-only Items section, and the Main tab warns
+  when they add up to 1 GB or more. (fa36a56)
+
 ## [0.5.0] - 2026-11-19
 
 ### Added
@@ -89,6 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - English and Spanish UI for the window and tray menu.
 - macOS DMG builds and Homebrew cask publishing workflows.
 
+[0.6.0]: https://github.com/sito8943/sito-mac-cleaner/releases/tag/v0.6.0
 [0.5.0]: https://github.com/sito8943/sito-mac-cleaner/releases/tag/v0.5.0
 [0.4.0]: https://github.com/sito8943/sito-mac-cleaner/releases/tag/v0.4.0
 [0.3.0]: https://github.com/sito8943/sito-mac-cleaner/releases/tag/v0.3.0

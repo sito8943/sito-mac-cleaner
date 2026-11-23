@@ -29,6 +29,7 @@ export interface Dictionary {
   cleanNow: string;
   liftCover: string;
   freed: (size: string) => string;
+  rebootNotice: (size: string) => string;
   logTitle: string;
   viewOutput: string;
   logEmpty: string;
@@ -57,6 +58,7 @@ export interface Dictionary {
   sectionSessions: string;
   sectionTrash: string;
   sectionChat: string;
+  sectionReboot: string;
   dismiss: string;
   errorScriptNotFound: string;
   errorScriptFailed: string;
